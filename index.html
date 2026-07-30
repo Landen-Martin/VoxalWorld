@@ -248,6 +248,7 @@
     <div class="slot active" data-slot="1" id="inv-wood"><span class="keybind">1</span><img src="/assets/texters/blocks/plank.png"><span class="count">0</span></div>
     <div class="slot" data-slot="2" id="inv-grass"><span class="keybind">2</span><img src="/assets/texters/blocks/grass.png"><span class="count">0</span></div>
     <div class="slot" data-slot="3" id="inv-stone"><span class="keybind">3</span><img src="/assets/texters/blocks/stone.png"><span class="count">0</span></div>
+    <div class="slot" data-slot="4" id="inv-leaves"><span class="keybind">4</span><img src="/assets/texters/blocks/leaves.png"><span class="count">0</span></div>
   </div>
 </div>
 
@@ -318,15 +319,16 @@ const stars = new THREE.Points(starsGeo, new THREE.PointsMaterial({ color: 0xfff
 scene.add(stars);
 
 // ============ Block Definitions ============
-const AIR = 0, WOOD = 1, GRASS = 2, STONE = 3, WATER = 4;
+const AIR = 0, WOOD = 1, GRASS = 2, STONE = 3, WATER = 4, LEAVES = 5;
 const blockGeo = new THREE.BoxGeometry(1, 1, 1);
 const loader = new THREE.TextureLoader();
 
 const stoneTex = loader.load('/assets/texters/blocks/stone.png');
 const grassTex = loader.load('/assets/texters/blocks/grass.png');
 const plankTex = loader.load('/assets/texters/blocks/plank.png');
+const leavesTex = loader.load('/assets/texters/blocks/leaves.png');
 
-[stoneTex, grassTex, plankTex].forEach(tex => {
+[stoneTex, grassTex, plankTex, leavesTex].forEach(tex => {
   tex.magFilter = THREE.NearestFilter;
   tex.minFilter = THREE.NearestMipmapNearestFilter;
   tex.colorSpace = THREE.SRGBColorSpace;
@@ -336,7 +338,8 @@ const materials = {
   [WOOD]: new THREE.MeshLambertMaterial({ map: plankTex }),
   [GRASS]: new THREE.MeshLambertMaterial({ map: grassTex }),
   [STONE]: new THREE.MeshLambertMaterial({ map: stoneTex }),
-  [WATER]: new THREE.MeshLambertMaterial({ color: 0x3a75c4, transparent: true, opacity: 0.75, depthWrite: false })
+  [WATER]: new THREE.MeshLambertMaterial({ color: 0x3a75c4, transparent: true, opacity: 0.75, depthWrite: false }),
+  [LEAVES]: new THREE.MeshLambertMaterial({ map: leavesTex, transparent: true, alphaTest: 0.5 })
 };
 
 // ============ World Data ============
@@ -382,6 +385,49 @@ function createPerlinNoise(seed) {
                  lerp(v, lerp(u, grad(p[AA + 1], x, y, z - 1), grad(p[BA + 1], x - 1, y, z - 1)),
                          lerp(u, grad(p[AB + 1], x, y - 1, z - 1), grad(p[BB + 1], x - 1, y - 1, z - 1))));
   };
+}
+
+function generateTrees(seed) {
+  let s = seed + 99999;
+  const rand = () => {
+    s = (s * 9301 + 49297) % 233280;
+    return s / 233280;
+  };
+
+  for (let x = 3; x < W - 3; x++) {
+    for (let z = 3; z < D - 3; z++) {
+      if (rand() < 0.02) { // 2% chance to spawn tree per block
+        let surfaceY = Y_MIN - 1;
+        for (let y = Y_MIN + H - 1; y >= Y_MIN; y--) {
+          if (world[idx(x, y, z)] !== AIR && world[idx(x, y, z)] !== WATER) {
+            surfaceY = y; break;
+          }
+        }
+        
+        if (surfaceY >= Y_MIN && world[idx(x, surfaceY, z)] === GRASS) {
+          const trunkHeight = 4 + Math.floor(rand() * 3); // 4-6 blocks high
+          for (let i = 1; i <= trunkHeight; i++) {
+            world[idx(x, surfaceY + i, z)] = WOOD;
+          }
+          
+          const topY = surfaceY + trunkHeight;
+          for (let dx = -2; dx <= 2; dx++) {
+            for (let dz = -2; dz <= 2; dz++) {
+              for (let dy = -1; dy <= 1; dy++) {
+                if (Math.abs(dx) + Math.abs(dz) + Math.abs(dy) <= 3) {
+                  const lx = x + dx, ly = topY + dy, lz = z + dz;
+                  if (inBounds(lx, ly, lz) && world[idx(lx, ly, lz)] === AIR) {
+                    world[idx(lx, ly, lz)] = LEAVES;
+                  }
+                }
+              }
+            }
+          }
+          world[idx(x, topY + 1, z)] = LEAVES;
+        }
+      }
+    }
+  }
 }
 
 function resetWorld(type = 'flat', seed = Math.floor(Math.random() * 1000000)) {
@@ -432,6 +478,8 @@ function resetWorld(type = 'flat', seed = Math.floor(Math.random() * 1000000)) {
         }
       }
     }
+    
+    generateTrees(seed);
   }
   rebuildMeshes();
 }
@@ -552,6 +600,7 @@ addEventListener('keydown', e => {
     if (e.code === 'Digit1') selectSlot(1);
     if (e.code === 'Digit2') selectSlot(2);
     if (e.code === 'Digit3') selectSlot(3);
+    if (e.code === 'Digit4') selectSlot(4);
   }
 });
 addEventListener('keyup', e => keysDown.delete(e.code));
@@ -563,7 +612,7 @@ const playerPos = SPAWN_POS.clone();
 const playerVel = new THREE.Vector3();
 let onGround = false;
 let playerHealth = 20;
-let inventory = { wood: 10, grass: 10, stone: 10 };
+let inventory = { wood: 10, grass: 10, stone: 10, leaves: 10 };
 let selectedSlot = 1;
 let dayTime = 0.25;
 
@@ -769,7 +818,7 @@ function loadWorld(id) {
   playerPos.set(w.data.playerPos.x, w.data.playerPos.y, w.data.playerPos.z);
   playerVel.set(0,0,0);
   playerHealth = w.data.playerHealth || 20;
-  inventory = w.data.inventory || { wood: 10, grass: 10, stone: 10 };
+  inventory = w.data.inventory || { wood: 10, grass: 10, stone: 10, leaves: 10 };
   dayTime = w.data.dayTime || 0.25;
   
   startGame();
@@ -831,7 +880,7 @@ function startGame() {
     modeIndicator.textContent = 'SURVIVE MODE';
   } else {
     document.getElementById('hearts').style.display = 'none';
-    inventory = { wood: '∞', grass: '∞', stone: '∞' };
+    inventory = { wood: '∞', grass: '∞', stone: '∞', leaves: '∞' };
     modeIndicator.textContent = 'CREATIVE MODE';
   }
   
@@ -878,9 +927,9 @@ function resetPlayer() {
   playerVel.set(0, 0, 0);
   playerHealth = 20;
   if (gameMode === 'survive') {
-    inventory = { wood: 10, grass: 10, stone: 10 };
+    inventory = { wood: 10, grass: 10, stone: 10, leaves: 10 };
   } else {
-    inventory = { wood: '∞', grass: '∞', stone: '∞' };
+    inventory = { wood: '∞', grass: '∞', stone: '∞', leaves: '∞' };
   }
   updateHearts();
   updateInventoryUI();
@@ -907,7 +956,7 @@ function selectSlot(slotNum) {
 }
 
 function updateInventoryUI() {
-  ['wood', 'grass', 'stone'].forEach((type, i) => {
+  ['wood', 'grass', 'stone', 'leaves'].forEach((type, i) => {
     const slotNum = i + 1;
     const el = document.getElementById(`inv-${type}`);
     el.classList.toggle('active', selectedSlot === slotNum);
@@ -996,6 +1045,7 @@ function breakBlock() {
     if (type === WOOD) inventory.wood++;
     else if (type === GRASS) inventory.grass++;
     else if (type === STONE) inventory.stone++;
+    else if (type === LEAVES) inventory.leaves++;
     updateInventoryUI();
   }
 
@@ -1014,7 +1064,8 @@ function placeBlock() {
   let typeToPlace, typeKey;
   if (selectedSlot === 1) { typeToPlace = WOOD; typeKey = 'wood'; }
   else if (selectedSlot === 2) { typeToPlace = GRASS; typeKey = 'grass'; }
-  else { typeToPlace = STONE; typeKey = 'stone'; }
+  else if (selectedSlot === 3) { typeToPlace = STONE; typeKey = 'stone'; }
+  else if (selectedSlot === 4) { typeToPlace = LEAVES; typeKey = 'leaves'; }
 
   if (gameMode === 'survive') {
     if (inventory[typeKey] <= 0) return;
