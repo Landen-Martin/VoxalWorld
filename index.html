@@ -4,40 +4,165 @@
 <meta charset="UTF-8">
 <title>VoxalWorld</title>
 <style>
+  @import url('https://fonts.googleapis.com/css2?family=Russo+One&family=Inter:wght@400;600;800&display=swap');
+
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  html, body { overflow: hidden; background: #000; }
+  html, body { overflow: hidden; background: #000; height: 100%; }
   canvas { display: block; }
-  body { cursor: pointer; }
-  body.locked { cursor: none; }
-  
-  /* Crosshair */
+  body { font-family: 'Inter', sans-serif; }
+
+  /* Overlays */
+  .overlay {
+    position: fixed; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column;
+    z-index: 100;
+    background: radial-gradient(circle, rgba(10,14,20,0.4) 0%, rgba(10,14,20,0.9) 100%);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    color: #fff;
+    transition: opacity 0.3s;
+  }
+  .overlay.hidden { display: none; }
+
+  h1 {
+    font-family: 'Russo One', sans-serif;
+    font-size: 64px;
+    letter-spacing: 8px;
+    margin-bottom: 10px;
+    text-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    background: linear-gradient(90deg, #d49560, #7ab85a, #9a9a9a);
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .subtitle {
+    font-size: 14px; letter-spacing: 4px;
+    color: #8a9bb0; margin-bottom: 40px; text-transform: uppercase;
+  }
+
+  .btn {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.15);
+    color: #fff;
+    padding: 14px 50px;
+    font-size: 16px;
+    font-family: 'Russo One', sans-serif;
+    letter-spacing: 3px;
+    margin: 8px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.2s;
+    text-transform: uppercase;
+  }
+  .btn:hover {
+    background: rgba(255,255,255,0.18);
+    transform: scale(1.05);
+    border-color: rgba(255,255,255,0.4);
+  }
+  .btn.secondary { background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.08); }
+
+  /* Settings */
+  .setting-row {
+    display: flex; align-items: center; gap: 15px;
+    margin: 15px 0; width: 350px;
+  }
+  .setting-row label { width: 140px; text-align: right; color: #ccc; font-size: 14px; }
+  .setting-row input[type="range"] { flex: 1; accent-color: #7ab85a; }
+  .setting-row span { width: 40px; text-align: left; font-weight: 600; }
+
+  /* HUD */
+  #hud {
+    position: fixed; inset: 0;
+    pointer-events: none; z-index: 40;
+    display: none;
+  }
   #crosshair {
-    position: fixed; top: 50%; left: 50%;
+    position: absolute; top: 50%; left: 50%;
     transform: translate(-50%, -50%);
     width: 22px; height: 22px;
-    pointer-events: none; z-index: 50;
     mix-blend-mode: difference; opacity: 0.8;
   }
   #crosshair::before, #crosshair::after {
     content: ''; position: absolute; background: #fff;
   }
-  #crosshair::before {
-    left: 50%; top: 0; width: 2px; height: 100%;
-    transform: translateX(-50%);
+  #crosshair::before { left: 50%; top: 0; width: 2px; height: 100%; transform: translateX(-50%); }
+  #crosshair::after { top: 50%; left: 0; height: 2px; width: 100%; transform: translateY(-50%); }
+
+  #hearts {
+    position: absolute; bottom: 20px; left: 20px;
+    display: flex; gap: 4px;
   }
-  #crosshair::after {
-    top: 50%; left: 0; height: 2px; width: 100%;
-    transform: translateY(-50%);
+  .heart {
+    width: 24px; height: 24px;
+    transition: transform 0.1s;
+  }
+  .heart svg { width: 100%; height: 100%; filter: drop-shadow(2px 2px 2px rgba(0,0,0,0.5)); }
+  .heart.empty svg path { fill: #333; }
+
+  #inventory {
+    position: absolute; bottom: 20px; left: 50%;
+    transform: translateX(-50%);
+    display: flex; gap: 10px;
+    background: rgba(0,0,0,0.5);
+    padding: 10px; border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.1);
+    backdrop-filter: blur(4px);
+    pointer-events: auto;
+  }
+  .slot {
+    width: 50px; height: 50px;
+    background: rgba(255,255,255,0.05);
+    border: 2px solid rgba(255,255,255,0.1);
+    border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .slot.active {
+    border-color: #fff;
+    background: rgba(255,255,255,0.2);
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.4);
+  }
+  .slot img { width: 32px; height: 32px; image-rendering: pixelated; pointer-events: none; }
+  .slot .count {
+    position: absolute; bottom: 2px; right: 4px;
+    font-size: 12px; font-weight: 800; color: #fff;
+    text-shadow: 1px 1px 2px #000;
+    pointer-events: none;
+  }
+  .slot .keybind {
+    position: absolute; top: 2px; left: 4px;
+    font-size: 10px; font-weight: 800; color: #aaa;
+    text-shadow: 1px 1px 2px #000;
+    pointer-events: none;
   }
 
-  /* Debug Overlay */
+  #mode-indicator {
+    position: absolute; top: 20px; right: 20px;
+    font-family: 'Russo One', sans-serif;
+    color: #fff; font-size: 14px; letter-spacing: 2px;
+    background: rgba(0,0,0,0.5);
+    padding: 8px 16px; border-radius: 4px;
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+
+  #damage-flash {
+    position: fixed; inset: 0;
+    background: radial-gradient(circle, transparent 40%, rgba(255,0,0,0.5) 100%);
+    opacity: 0; pointer-events: none; z-index: 45;
+    transition: opacity 0.1s;
+  }
+
+  /* Debug */
   #debug {
     position: fixed; top: 10px; left: 10px;
     color: #00ff00; font-family: 'Courier New', monospace;
     font-size: 12px; z-index: 50;
     text-shadow: 1px 1px 0 #000;
     display: none;
-    background: rgba(0,0,0,0.5);
+    background: rgba(0,0,0,0.6);
     padding: 10px; border-radius: 4px;
     pointer-events: none;
   }
@@ -45,7 +170,65 @@
 </head>
 <body>
 
-<div id="crosshair"></div>
+<div id="menu" class="overlay">
+  <h1>VOXALWORLD</h1>
+  <div class="subtitle">Build & Survive</div>
+  <button class="btn" id="play-survive-btn">SURVIVE MODE</button>
+  <button class="btn secondary" id="play-creative-btn">CREATIVE MODE</button>
+  <button class="btn secondary" id="settings-btn">SETTINGS</button>
+</div>
+
+<div id="settings" class="overlay hidden">
+  <h1>SETTINGS</h1>
+  <div class="setting-row">
+    <label>FOV</label>
+    <input type="range" id="fov-slider" min="60" max="100" value="75">
+    <span id="fov-val">75</span>
+  </div>
+  <div class="setting-row">
+    <label>Render Distance</label>
+    <input type="range" id="render-slider" min="40" max="150" value="80">
+    <span id="render-val">80</span>
+  </div>
+  <button class="btn" id="back-btn" style="margin-top: 30px;">BACK</button>
+</div>
+
+<div id="pause" class="overlay hidden">
+  <h1>PAUSED</h1>
+  <button class="btn" id="resume-btn">RESUME</button>
+  <button class="btn secondary" id="menu-btn">MAIN MENU</button>
+</div>
+
+<div id="death" class="overlay hidden" style="background: radial-gradient(circle, rgba(50,0,0,0.6) 0%, rgba(0,0,0,0.95) 100%);">
+  <h1 style="background: linear-gradient(90deg, #ff4c4c, #8a2b2b); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">YOU DIED</h1>
+  <div class="subtitle">The world consumed you</div>
+  <button class="btn" id="respawn-btn">RESPAWN</button>
+</div>
+
+<div id="hud">
+  <div id="crosshair"></div>
+  <div id="mode-indicator"></div>
+  <div id="hearts"></div>
+  <div id="inventory">
+    <div class="slot active" data-slot="1" id="inv-wood">
+      <span class="keybind">1</span>
+      <img src="/assets/texters/blocks/plank.png">
+      <span class="count">0</span>
+    </div>
+    <div class="slot" data-slot="2" id="inv-grass">
+      <span class="keybind">2</span>
+      <img src="/assets/texters/blocks/grass.png">
+      <span class="count">0</span>
+    </div>
+    <div class="slot" data-slot="3" id="inv-stone">
+      <span class="keybind">3</span>
+      <img src="/assets/texters/blocks/stone.png">
+      <span class="count">0</span>
+    </div>
+  </div>
+</div>
+
+<div id="damage-flash"></div>
 <div id="debug"></div>
 
 <script type="importmap">
@@ -66,13 +249,13 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87ceeb);
 scene.fog = new THREE.Fog(0x87ceeb, 30, 80);
 
-const camera = new THREE.PerspectiveCamera(72, innerWidth / innerHeight, 0.1, 500);
+const camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.1, 500);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(innerWidth, innerHeight);
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Softer, realistic shadows
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.0;
 document.body.appendChild(renderer.domElement);
@@ -80,64 +263,44 @@ document.body.appendChild(renderer.domElement);
 // ============ Lighting ============
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
 scene.add(ambientLight);
-
 const hemisphereLight = new THREE.HemisphereLight(0x87ceeb, 0x4a3a28, 0.4);
 scene.add(hemisphereLight);
 
-// Sun Light
 const sunLight = new THREE.DirectionalLight(0xfff0d0, 1.2);
 sunLight.castShadow = true;
-sunLight.shadow.mapSize.set(4096, 4096); // High-res shadows
+sunLight.shadow.mapSize.set(4096, 4096);
 sunLight.shadow.camera.near = 1;
 sunLight.shadow.camera.far = 150;
-sunLight.shadow.camera.left = -40;
-sunLight.shadow.camera.right = 40;
-sunLight.shadow.camera.top = 40;
-sunLight.shadow.camera.bottom = -40;
-sunLight.shadow.bias = -0.0005;
-sunLight.shadow.normalBias = 0.05; // Reduces shadow acne on voxel faces
-scene.add(sunLight);
-scene.add(sunLight.target);
+sunLight.shadow.camera.left = -40; sunLight.shadow.camera.right = 40;
+sunLight.shadow.camera.top = 40; sunLight.shadow.camera.bottom = -40;
+sunLight.shadow.bias = -0.0005; sunLight.shadow.normalBias = 0.05;
+scene.add(sunLight); scene.add(sunLight.target);
 
-// Moon Light
 const moonLight = new THREE.DirectionalLight(0xaaaaee, 0.2);
-scene.add(moonLight);
-scene.add(moonLight.target);
+scene.add(moonLight); scene.add(moonLight.target);
 
 // ============ Sun & Moon Visuals ============
-const sunMesh = new THREE.Mesh(
-  new THREE.SphereGeometry(4, 16, 16),
-  new THREE.MeshBasicMaterial({ color: 0xffeeaa, fog: false })
-);
+const sunMesh = new THREE.Mesh(new THREE.SphereGeometry(4, 16, 16), new THREE.MeshBasicMaterial({ color: 0xffeeaa, fog: false }));
 scene.add(sunMesh);
-
-const moonMesh = new THREE.Mesh(
-  new THREE.SphereGeometry(3, 16, 16),
-  new THREE.MeshBasicMaterial({ color: 0xdddddd, fog: false })
-);
+const moonMesh = new THREE.Mesh(new THREE.SphereGeometry(3, 16, 16), new THREE.MeshBasicMaterial({ color: 0xdddddd, fog: false }));
 scene.add(moonMesh);
 
-// Stars (Night Sky)
+// Stars
 const starsGeo = new THREE.BufferGeometry();
-const starCount = 2000;
-const starPositions = new Float32Array(starCount * 3);
-for (let i = 0; i < starCount; i++) {
-  const r = 200;
-  const theta = Math.random() * Math.PI * 2;
-  const phi = Math.acos(2 * Math.random() - 1);
+const starPositions = new Float32Array(2000 * 3);
+for (let i = 0; i < 2000; i++) {
+  const r = 250, theta = Math.random() * Math.PI * 2, phi = Math.acos(2 * Math.random() - 1);
   starPositions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
   starPositions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
   starPositions[i * 3 + 2] = r * Math.cos(phi);
 }
 starsGeo.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
-const starsMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.5, transparent: true, opacity: 0, fog: false });
-const stars = new THREE.Points(starsGeo, starsMat);
+const stars = new THREE.Points(starsGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.5, transparent: true, opacity: 0, fog: false }));
 scene.add(stars);
 
-// ============ Block definitions & Textures ============
+// ============ Block Textures ============
 const AIR = 0, WOOD = 1, GRASS = 2, STONE = 3;
 const blockGeo = new THREE.BoxGeometry(1, 1, 1);
-
 const loader = new THREE.TextureLoader();
 
 const stoneTex = loader.load('/assets/texters/blocks/stone.png');
@@ -156,9 +319,8 @@ const materials = {
   [STONE]: new THREE.MeshLambertMaterial({ map: stoneTex })
 };
 
-// ============ World data (Flatworld) ============
-const W = 32, H = 24, D = 32;
-const Y_MIN = -8;
+// ============ World Data ============
+const W = 32, H = 24, D = 32, Y_MIN = -8;
 const world = new Uint8Array(W * H * D);
 const blockMeshes = {};
 
@@ -169,9 +331,7 @@ const kkey = (x, y, z) => `${x},${y},${z}`;
 for (let x = 0; x < W; x++) {
   for (let z = 0; z < D; z++) {
     world[idx(x, 0, z)] = GRASS;
-    for (let y = -1; y >= Y_MIN; y--) {
-      world[idx(x, y, z)] = STONE;
-    }
+    for (let y = -1; y >= Y_MIN; y--) world[idx(x, y, z)] = STONE;
   }
 }
 
@@ -193,8 +353,7 @@ function createBlock(x, y, z) {
 
   const mesh = new THREE.Mesh(blockGeo, materials[type]);
   mesh.position.set(x + 0.5, y + 0.5, z + 0.5);
-  mesh.castShadow = true;
-  mesh.receiveShadow = true;
+  mesh.castShadow = true; mesh.receiveShadow = true;
   mesh.userData = { x, y, z, type };
   scene.add(mesh);
   blockMeshes[kkey(x, y, z)] = mesh;
@@ -203,10 +362,7 @@ function createBlock(x, y, z) {
 
 function removeBlockMesh(x, y, z) {
   const k = kkey(x, y, z);
-  if (blockMeshes[k]) {
-    scene.remove(blockMeshes[k]);
-    delete blockMeshes[k];
-  }
+  if (blockMeshes[k]) { scene.remove(blockMeshes[k]); delete blockMeshes[k]; }
 }
 
 for (let x = 0; x < W; x++)
@@ -214,38 +370,203 @@ for (let x = 0; x < W; x++)
     for (let z = 0; z < D; z++)
       if (world[idx(x, y, z)] !== AIR) createBlock(x, y, z);
 
-// ============ Controls ============
+// ============ Controls & State ============
 const controls = new PointerLockControls(camera, document.body);
 scene.add(camera);
 
-document.body.addEventListener('click', () => {
-  if (!controls.isLocked) controls.lock();
+let gameState = 'menu'; // menu, playing, paused, settings, dead
+let gameMode = 'survive'; // 'survive' or 'creative'
+const keysDown = new Set();
+
+addEventListener('keydown', e => {
+  keysDown.add(e.code);
+  // Inventory selection
+  if (gameState === 'playing') {
+    if (e.code === 'Digit1') selectSlot(1);
+    if (e.code === 'Digit2') selectSlot(2);
+    if (e.code === 'Digit3') selectSlot(3);
+  }
 });
-controls.addEventListener('lock', () => document.body.classList.add('locked'));
-controls.addEventListener('unlock', () => document.body.classList.remove('locked'));
+addEventListener('keyup', e => keysDown.delete(e.code));
 
-// ============ Player physics ============
-const EYE_HEIGHT = 1.6;
-const PLAYER_WIDTH = 0.55;
-const GRAVITY = 26;
-const JUMP_SPEED = 9;
-const MOVE_SPEED = 5;
-const SPRINT_SPEED = 8;
-
-const playerPos = new THREE.Vector3(W / 2 + 0.5, 2.0, D / 2 + 0.5);
+// ============ Player Stats ============
+const EYE_HEIGHT = 1.6, PLAYER_WIDTH = 0.55, GRAVITY = 26, JUMP_SPEED = 9, MOVE_SPEED = 5, SPRINT_SPEED = 8;
+const SPAWN_POS = new THREE.Vector3(W / 2 + 0.5, 2.0, D / 2 + 0.5);
+const playerPos = SPAWN_POS.clone();
 const playerVel = new THREE.Vector3();
 let onGround = false;
+let playerHealth = 20;
+let inventory = { wood: 10, grass: 10, stone: 10 };
+let selectedSlot = 1; // 1=Wood, 2=Grass, 3=Stone
 
 camera.position.copy(playerPos);
 camera.position.y += EYE_HEIGHT;
 
-const keysDown = new Set();
-addEventListener('keydown', e => keysDown.add(e.code));
-addEventListener('keyup', e => keysDown.delete(e.code));
+// ============ UI Logic ============
+const menuEl = document.getElementById('menu');
+const settingsEl = document.getElementById('settings');
+const pauseEl = document.getElementById('pause');
+const deathEl = document.getElementById('death');
+const hudEl = document.getElementById('hud');
+const modeIndicator = document.getElementById('mode-indicator');
 
-// ============ DEV Mode Logic ============
-let devMode = false;
-let devToggleReady = true;
+document.getElementById('play-survive-btn').onclick = () => startGame('survive');
+document.getElementById('play-creative-btn').onclick = () => startGame('creative');
+document.getElementById('settings-btn').onclick = () => { menuEl.classList.add('hidden'); settingsEl.classList.remove('hidden'); };
+document.getElementById('back-btn').onclick = () => { settingsEl.classList.add('hidden'); menuEl.classList.remove('hidden'); };
+document.getElementById('resume-btn').onclick = resumeGame;
+document.getElementById('menu-btn').onclick = returnToMenu;
+document.getElementById('respawn-btn').onclick = respawn;
+
+// Inventory slot clicking
+document.querySelectorAll('.slot').forEach(slot => {
+  slot.addEventListener('click', () => selectSlot(parseInt(slot.dataset.slot)));
+});
+
+document.getElementById('fov-slider').oninput = (e) => {
+  camera.fov = e.target.value; camera.updateProjectionMatrix();
+  document.getElementById('fov-val').textContent = e.target.value;
+};
+document.getElementById('render-slider').oninput = (e) => {
+  scene.fog.far = parseInt(e.target.value);
+  document.getElementById('render-val').textContent = e.target.value;
+};
+
+controls.addEventListener('lock', () => {
+  if (gameState === 'paused') gameState = 'playing';
+  document.body.classList.add('locked');
+});
+controls.addEventListener('unlock', () => {
+  document.body.classList.remove('locked');
+  if (gameState === 'playing') pauseGame();
+});
+
+function startGame(mode) {
+  gameMode = mode;
+  gameState = 'playing';
+  menuEl.classList.add('hidden');
+  hudEl.style.display = 'block';
+  
+  if (gameMode === 'survive') {
+    document.getElementById('hearts').style.display = 'flex';
+    modeIndicator.textContent = 'SURVIVE MODE';
+  } else {
+    document.getElementById('hearts').style.display = 'none';
+    inventory = { wood: '∞', grass: '∞', stone: '∞' };
+    modeIndicator.textContent = 'CREATIVE MODE';
+  }
+  
+  resetPlayer();
+  controls.lock();
+}
+
+function pauseGame() {
+  gameState = 'paused';
+  pauseEl.classList.remove('hidden');
+}
+
+function resumeGame() {
+  gameState = 'playing';
+  pauseEl.classList.add('hidden');
+  controls.lock();
+}
+
+function returnToMenu() {
+  gameState = 'menu';
+  pauseEl.classList.add('hidden');
+  deathEl.classList.add('hidden');
+  hudEl.style.display = 'none';
+  menuEl.classList.remove('hidden');
+  // Reset world to original state for menu preview
+  resetWorld();
+}
+
+function die() {
+  if (gameMode === 'creative') return; // Cannot die in creative
+  gameState = 'dead';
+  controls.unlock();
+  deathEl.classList.remove('hidden');
+}
+
+function respawn() {
+  deathEl.classList.add('hidden');
+  gameState = 'playing';
+  resetPlayer();
+  controls.lock();
+}
+
+function resetPlayer() {
+  playerPos.copy(SPAWN_POS);
+  playerVel.set(0, 0, 0);
+  playerHealth = 20;
+  if (gameMode === 'survive') {
+    inventory = { wood: 10, grass: 10, stone: 10 };
+  }
+  updateHearts();
+  updateInventoryUI();
+}
+
+function resetWorld() {
+  // Simple reset: clear all meshes and regenerate base world
+  Object.values(blockMeshes).forEach(m => scene.remove(m));
+  for (let key in blockMeshes) delete blockMeshes[key];
+  world.fill(0);
+  for (let x = 0; x < W; x++) {
+    for (let z = 0; z < D; z++) {
+      world[idx(x, 0, z)] = GRASS;
+      for (let y = -1; y >= Y_MIN; y--) world[idx(x, y, z)] = STONE;
+    }
+  }
+  for (let x = 0; x < W; x++)
+    for (let y = Y_MIN; y < Y_MIN + H; y++)
+      for (let z = 0; z < D; z++)
+        if (world[idx(x, y, z)] !== AIR) createBlock(x, y, z);
+}
+
+// Hearts UI
+const heartsContainer = document.getElementById('hearts');
+for(let i=0; i<10; i++) {
+  const heart = document.createElement('div');
+  heart.className = 'heart';
+  heart.innerHTML = `<svg viewBox="0 0 32 32"><path d="M16 28 C 5 20, 0 14, 0 9 C 0 4, 4 0, 9 0 C 12 0, 14 2, 16 4 C 18 2, 20 0, 23 0 C 28 0, 32 4, 32 9 C 32 14, 27 20, 16 28 Z" fill="#ff3b3b" stroke="#000" stroke-width="2"/></svg>`;
+  heartsContainer.appendChild(heart);
+}
+
+function updateHearts() {
+  const hearts = heartsContainer.children;
+  const fullHearts = Math.ceil(playerHealth / 2);
+  for(let i=0; i<10; i++) {
+    hearts[i].classList.toggle('empty', i >= fullHearts);
+  }
+}
+
+function selectSlot(slotNum) {
+  selectedSlot = slotNum;
+  updateInventoryUI();
+}
+
+function updateInventoryUI() {
+  ['wood', 'grass', 'stone'].forEach((type, i) => {
+    const slotNum = i + 1;
+    const el = document.getElementById(`inv-${type}`);
+    if (selectedSlot === slotNum) el.classList.add('active');
+    else el.classList.remove('active');
+    el.querySelector('.count').textContent = inventory[type];
+  });
+}
+
+function takeDamage(amount) {
+  if (gameMode === 'creative' || gameState !== 'playing') return;
+  playerHealth -= amount;
+  if (playerHealth <= 0) { playerHealth = 0; die(); }
+  updateHearts();
+  const flash = document.getElementById('damage-flash');
+  flash.style.opacity = '1';
+  setTimeout(() => flash.style.opacity = '0', 100);
+}
+
+// ============ DEV Mode ============
+let devMode = false, devToggleReady = true;
 const debugDiv = document.getElementById('debug');
 
 function checkDevMode() {
@@ -253,19 +574,13 @@ function checkDevMode() {
   if (isDevPressed && devToggleReady) {
     devMode = !devMode;
     devToggleReady = false;
-    
-    // Toggle wireframe on all materials
-    Object.values(materials).forEach(mat => {
-      mat.wireframe = devMode;
-    });
-    
+    Object.values(materials).forEach(mat => mat.wireframe = devMode);
     debugDiv.style.display = devMode ? 'block' : 'none';
   }
-  if (!isDevPressed) {
-    devToggleReady = true;
-  }
+  if (!isDevPressed) devToggleReady = true;
 }
 
+// ============ Collision & Interaction ============
 function collides(px, py, pz) {
   const w = PLAYER_WIDTH / 2;
   const minX = Math.floor(px - w), maxX = Math.floor(px + w);
@@ -285,11 +600,9 @@ function blockOverlapsPlayer(bx, by, bz) {
           playerPos.z - w < bz + 1 && playerPos.z + w > bz);
 }
 
-// ============ Block interaction ============
 const raycaster = new THREE.Raycaster();
 raycaster.far = 7;
 const screenCenter = new THREE.Vector2(0, 0);
-
 const highlightMesh = new THREE.LineSegments(
   new THREE.EdgesGeometry(new THREE.BoxGeometry(1.005, 1.005, 1.005)),
   new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6 })
@@ -303,24 +616,30 @@ function updateTarget() {
   raycaster.setFromCamera(screenCenter, camera);
   const hits = raycaster.intersectObjects(Object.values(blockMeshes));
   if (hits.length > 0) {
-    const hit = hits[0];
-    const mesh = hit.object;
-    const { x, y, z } = mesh.userData;
+    const hit = hits[0], mesh = hit.object, { x, y, z } = mesh.userData;
     targetBlock = { x, y, z, mesh };
     const n = hit.face.normal;
     placePos = { x: x + Math.round(n.x), y: y + Math.round(n.y), z: z + Math.round(n.z) };
     highlightMesh.position.set(x + 0.5, y + 0.5, z + 0.5);
     highlightMesh.visible = true;
   } else {
-    targetBlock = null;
-    placePos = null;
-    highlightMesh.visible = false;
+    targetBlock = null; placePos = null; highlightMesh.visible = false;
   }
 }
 
 function breakBlock() {
   if (!targetBlock) return;
-  const { x, y, z } = targetBlock;
+  const { x, y, z, mesh } = targetBlock;
+  const type = mesh.userData.type;
+  
+  // Add to inventory if in survive mode
+  if (gameMode === 'survive') {
+    if (type === WOOD) inventory.wood++;
+    else if (type === GRASS) inventory.grass++;
+    else if (type === STONE) inventory.stone++;
+    updateInventoryUI();
+  }
+
   world[idx(x, y, z)] = AIR;
   removeBlockMesh(x, y, z);
   for (const [dx, dy, dz] of [[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]]) {
@@ -331,21 +650,26 @@ function breakBlock() {
 function placeBlock() {
   if (!placePos) return;
   const { x, y, z } = placePos;
-  if (!inBounds(x, y, z)) return;
-  if (world[idx(x, y, z)] !== AIR) return;
-  if (blockOverlapsPlayer(x, y, z)) return;
+  if (!inBounds(x, y, z) || world[idx(x, y, z)] !== AIR || blockOverlapsPlayer(x, y, z)) return;
 
-  let typeToPlace;
-  if (y < 0) typeToPlace = STONE;
-  else if (y === 0) typeToPlace = GRASS;
-  else typeToPlace = WOOD;
+  let typeToPlace, typeKey;
+  if (selectedSlot === 1) { typeToPlace = WOOD; typeKey = 'wood'; }
+  else if (selectedSlot === 2) { typeToPlace = GRASS; typeKey = 'grass'; }
+  else { typeToPlace = STONE; typeKey = 'stone'; }
+
+  // Consume from inventory if in survive mode
+  if (gameMode === 'survive') {
+    if (inventory[typeKey] <= 0) return;
+    inventory[typeKey]--;
+    updateInventoryUI();
+  }
 
   world[idx(x, y, z)] = typeToPlace;
   createBlock(x, y, z);
 }
 
 addEventListener('mousedown', e => {
-  if (!controls.isLocked) return;
+  if (gameState !== 'playing') return;
   if (e.button === 0) breakBlock();
   else if (e.button === 2) placeBlock();
 });
@@ -354,132 +678,96 @@ addEventListener('contextmenu', e => e.preventDefault());
 // ============ Animation Loop ============
 const clock = new THREE.Clock();
 const upVec = new THREE.Vector3(0, 1, 0);
-const forwardVec = new THREE.Vector3();
-const rightVec = new THREE.Vector3();
-const moveDir = new THREE.Vector3();
-
-// Day/Night Colors
-const daySky = new THREE.Color(0x87ceeb);
-const sunsetSky = new THREE.Color(0xff6655);
-const nightSky = new THREE.Color(0x000011);
-
-let dayTime = 0.25; // Start in the morning
+const forwardVec = new THREE.Vector3(), rightVec = new THREE.Vector3(), moveDir = new THREE.Vector3();
+const daySky = new THREE.Color(0x87ceeb), sunsetSky = new THREE.Color(0xff6655), nightSky = new THREE.Color(0x000011);
+let dayTime = 0.25;
 
 function animate() {
   requestAnimationFrame(animate);
   const dt = Math.min(clock.getDelta(), 0.05);
   
-  // DEV Mode Check
   checkDevMode();
 
-  // Day/Night Cycle (1 full cycle ~ 120 seconds)
+  // Day/Night Cycle
   dayTime = (dayTime + dt / 120) % 1.0;
   const sunAngle = dayTime * Math.PI * 2;
-  
-  // Sun & Moon positioning (orbit around player)
-  const orbitRadius = 100;
   const sunHeight = Math.sin(sunAngle);
-  const sunX = Math.cos(sunAngle) * orbitRadius;
-  const sunY = sunHeight * orbitRadius;
-  const sunZ = 30; // Offset so it doesn't pass straight overhead
+  const orbitRadius = 100;
   
-  sunMesh.position.set(playerPos.x + sunX, playerPos.y + sunY, playerPos.z + sunZ);
-  sunLight.position.copy(sunMesh.position);
-  sunLight.target.position.copy(playerPos);
-  
-  moonMesh.position.set(playerPos.x - sunX, playerPos.y - sunY, playerPos.z - sunZ);
-  moonLight.position.copy(moonMesh.position);
-  moonLight.target.position.copy(playerPos);
+  sunMesh.position.set(playerPos.x + Math.cos(sunAngle) * orbitRadius, playerPos.y + sunHeight * orbitRadius, playerPos.z + 30);
+  sunLight.position.copy(sunMesh.position); sunLight.target.position.copy(playerPos);
+  moonMesh.position.set(playerPos.x - Math.cos(sunAngle) * orbitRadius, playerPos.y - sunHeight * orbitRadius, playerPos.z - 30);
+  moonLight.position.copy(moonMesh.position); moonLight.target.position.copy(playerPos);
 
-  // Dynamic Lighting & Sky colors
-  let skyColor = new THREE.Color();
-  let lightIntensity = 0;
-  let ambientIntensity = 0;
-  
+  let skyColor = new THREE.Color(), lightIntensity = 0, ambientIntensity = 0;
   if (sunHeight > 0.2) {
-    // Day
-    skyColor.copy(daySky);
-    lightIntensity = 1.2;
-    ambientIntensity = 0.4;
-    starsMat.opacity = 0;
+    skyColor.copy(daySky); lightIntensity = 1.2; ambientIntensity = 0.4; stars.material.opacity = 0;
   } else if (sunHeight > -0.2) {
-    // Sunset / Sunrise
-    const t = (sunHeight + 0.2) / 0.4; // 0 to 1
-    skyColor.lerpColors(nightSky, sunsetSky, t * 0.8);
-    skyColor.lerp(daySky, Math.max(0, t - 0.5) * 2);
-    lightIntensity = t * 1.0;
-    ambientIntensity = 0.1 + t * 0.3;
-    starsMat.opacity = 1 - t;
+    const t = (sunHeight + 0.2) / 0.4;
+    skyColor.lerpColors(nightSky, sunsetSky, t * 0.8); skyColor.lerp(daySky, Math.max(0, t - 0.5) * 2);
+    lightIntensity = t * 1.0; ambientIntensity = 0.1 + t * 0.3; stars.material.opacity = 1 - t;
   } else {
-    // Night
-    skyColor.copy(nightSky);
-    lightIntensity = 0;
-    ambientIntensity = 0.1;
-    starsMat.opacity = 1;
+    skyColor.copy(nightSky); lightIntensity = 0; ambientIntensity = 0.1; stars.material.opacity = 1;
   }
-  
-  scene.background.copy(skyColor);
-  scene.fog.color.copy(skyColor);
-  sunLight.intensity = lightIntensity;
-  ambientLight.intensity = ambientIntensity;
-  
-  // Turn sun/moon meshes off when they are below the horizon
-  sunMesh.visible = sunHeight > -0.1;
-  moonMesh.visible = sunHeight < 0.1;
-
-  // Stars rotation
+  scene.background.copy(skyColor); scene.fog.color.copy(skyColor);
+  sunLight.intensity = lightIntensity; ambientLight.intensity = ambientIntensity;
+  sunMesh.visible = sunHeight > -0.1; moonMesh.visible = sunHeight < 0.1;
   stars.rotation.y += dt * 0.01;
 
-  // Player Movement
-  if (controls.isLocked) {
-    camera.getWorldDirection(forwardVec);
-    forwardVec.y = 0;
-    forwardVec.normalize();
+  // Menu State Orbit Camera
+  if (gameState === 'menu') {
+    const time = clock.getElapsedTime();
+    camera.position.x = Math.cos(time * 0.1) * 25 + W/2;
+    camera.position.z = Math.sin(time * 0.1) * 25 + D/2;
+    camera.position.y = 15 + Math.sin(time * 0.2) * 2;
+    camera.lookAt(W/2, 0, D/2);
+  } 
+  // Playing State Physics
+  else if (gameState === 'playing') {
+    camera.getWorldDirection(forwardVec); forwardVec.y = 0; forwardVec.normalize();
     rightVec.crossVectors(forwardVec, upVec).normalize();
 
     const moveZ = (keysDown.has('KeyW') ? 1 : 0) - (keysDown.has('KeyS') ? 1 : 0);
     const moveX = (keysDown.has('KeyD') ? 1 : 0) - (keysDown.has('KeyA') ? 1 : 0);
-    moveDir.set(0, 0, 0)
-      .addScaledVector(forwardVec, moveZ)
-      .addScaledVector(rightVec, moveX);
+    moveDir.set(0, 0, 0).addScaledVector(forwardVec, moveZ).addScaledVector(rightVec, moveX);
     if (moveDir.lengthSq() > 0) moveDir.normalize();
 
     const speed = keysDown.has('ShiftLeft') ? SPRINT_SPEED : MOVE_SPEED;
-    playerVel.x = moveDir.x * speed;
-    playerVel.z = moveDir.z * speed;
+    playerVel.x = moveDir.x * speed; playerVel.z = moveDir.z * speed;
 
     playerVel.y -= GRAVITY * dt;
-    if (keysDown.has('Space') && onGround) {
-      playerVel.y = JUMP_SPEED;
-      onGround = false;
-    }
+    if (keysDown.has('Space') && onGround) { playerVel.y = JUMP_SPEED; onGround = false; }
 
     const oldX = playerPos.x;
     playerPos.x += playerVel.x * dt;
-    if (collides(playerPos.x, playerPos.y, playerPos.z)) {
-      playerPos.x = oldX;
-      playerVel.x = 0;
-    }
+    if (collides(playerPos.x, playerPos.y, playerPos.z)) { playerPos.x = oldX; playerVel.x = 0; }
 
     const oldZ = playerPos.z;
     playerPos.z += playerVel.z * dt;
-    if (collides(playerPos.x, playerPos.y, playerPos.z)) {
-      playerPos.z = oldZ;
-      playerVel.z = 0;
-    }
+    if (collides(playerPos.x, playerPos.y, playerPos.z)) { playerPos.z = oldZ; playerVel.z = 0; }
 
     const oldY = playerPos.y;
     playerPos.y += playerVel.y * dt;
     onGround = false;
     if (collides(playerPos.x, playerPos.y, playerPos.z)) {
       playerPos.y = oldY;
+      // Fall damage calculation (Survive only)
+      if (playerVel.y < -15 && gameMode === 'survive') {
+        const dmg = Math.floor((-playerVel.y - 15) / 2) + 1;
+        takeDamage(dmg);
+      }
       if (playerVel.y < 0) onGround = true;
       playerVel.y = 0;
     }
 
+    // Void death/teleport
     if (playerPos.y < -12) {
-      playerPos.set(W / 2 + 0.5, 2.0, D / 2 + 0.5);
-      playerVel.set(0, 0, 0);
+      if (gameMode === 'survive') {
+        takeDamage(20);
+      } else {
+        playerPos.copy(SPAWN_POS);
+        playerVel.set(0,0,0);
+      }
     }
 
     camera.position.copy(playerPos);
@@ -488,23 +776,22 @@ function animate() {
     updateTarget();
   }
 
-  // Highlight block pulse
   if (highlightMesh.visible) {
-    const t = performance.now() * 0.003;
-    highlightMesh.material.opacity = 0.4 + Math.sin(t) * 0.2;
+    highlightMesh.material.opacity = 0.4 + Math.sin(performance.now() * 0.003) * 0.2;
   }
 
-  // DEV Mode Output
   if (devMode) {
     const fps = (1 / dt).toFixed(0);
     const timeStr = `${(dayTime * 24).toFixed(1).padStart(4, '0')}:00`;
-    const blockCount = Object.keys(blockMeshes).length;
     debugDiv.innerHTML = `
       <strong>VOXALWORLD DEBUG</strong><br>
       FPS: ${fps}<br>
+      MODE: ${gameMode.toUpperCase()}<br>
       POS: X:${playerPos.x.toFixed(1)} Y:${playerPos.y.toFixed(1)} Z:${playerPos.z.toFixed(1)}<br>
+      VEL: Y:${playerVel.y.toFixed(1)}<br>
+      HP: ${playerHealth}<br>
       TIME: ${timeStr} (Cycle: ${(dayTime * 100).toFixed(1)}%)<br>
-      MESHES: ${blockCount}<br>
+      MESHES: ${Object.keys(blockMeshes).length}<br>
       TARGET: ${targetBlock ? `${targetBlock.x},${targetBlock.y},${targetBlock.z}` : 'None'}
     `;
   }
