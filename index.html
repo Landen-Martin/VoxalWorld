@@ -2,16 +2,51 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Textured Flatworld</title>
+<title>VoxalWorld</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { overflow: hidden; background: #000; }
   canvas { display: block; }
   body { cursor: pointer; }
   body.locked { cursor: none; }
+  
+  /* Crosshair */
+  #crosshair {
+    position: fixed; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 22px; height: 22px;
+    pointer-events: none; z-index: 50;
+    mix-blend-mode: difference; opacity: 0.8;
+  }
+  #crosshair::before, #crosshair::after {
+    content: ''; position: absolute; background: #fff;
+  }
+  #crosshair::before {
+    left: 50%; top: 0; width: 2px; height: 100%;
+    transform: translateX(-50%);
+  }
+  #crosshair::after {
+    top: 50%; left: 0; height: 2px; width: 100%;
+    transform: translateY(-50%);
+  }
+
+  /* Debug Overlay */
+  #debug {
+    position: fixed; top: 10px; left: 10px;
+    color: #00ff00; font-family: 'Courier New', monospace;
+    font-size: 12px; z-index: 50;
+    text-shadow: 1px 1px 0 #000;
+    display: none;
+    background: rgba(0,0,0,0.5);
+    padding: 10px; border-radius: 4px;
+    pointer-events: none;
+  }
 </style>
 </head>
 <body>
+
+<div id="crosshair"></div>
+<div id="debug"></div>
 
 <script type="importmap">
 {
@@ -29,35 +64,75 @@ import { PointerLockControls } from 'three/addons/controls/PointerLockControls.j
 // ============ Scene ============
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87ceeb);
-scene.fog = new THREE.Fog(0x87ceeb, 25, 70);
+scene.fog = new THREE.Fog(0x87ceeb, 30, 80);
 
-const camera = new THREE.PerspectiveCamera(72, innerWidth / innerHeight, 0.1, 200);
+const camera = new THREE.PerspectiveCamera(72, innerWidth / innerHeight, 0.1, 500);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(innerWidth, innerHeight);
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Softer, realistic shadows
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.05;
+renderer.toneMappingExposure = 1.0;
 document.body.appendChild(renderer.domElement);
 
 // ============ Lighting ============
-scene.add(new THREE.AmbientLight(0xb8c8d8, 0.6));
-scene.add(new THREE.HemisphereLight(0x87ceeb, 0x4a3a28, 0.5));
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
+scene.add(ambientLight);
 
-const sun = new THREE.DirectionalLight(0xfff0d0, 1.2);
-sun.position.set(30, 50, 20);
-sun.castShadow = true;
-sun.shadow.mapSize.set(2048, 2048);
-sun.shadow.camera.left = -35;
-sun.shadow.camera.right = 35;
-sun.shadow.camera.top = 35;
-sun.shadow.camera.bottom = -35;
-sun.shadow.camera.near = 1;
-sun.shadow.camera.far = 120;
-sun.shadow.bias = -0.0008;
-scene.add(sun);
+const hemisphereLight = new THREE.HemisphereLight(0x87ceeb, 0x4a3a28, 0.4);
+scene.add(hemisphereLight);
+
+// Sun Light
+const sunLight = new THREE.DirectionalLight(0xfff0d0, 1.2);
+sunLight.castShadow = true;
+sunLight.shadow.mapSize.set(4096, 4096); // High-res shadows
+sunLight.shadow.camera.near = 1;
+sunLight.shadow.camera.far = 150;
+sunLight.shadow.camera.left = -40;
+sunLight.shadow.camera.right = 40;
+sunLight.shadow.camera.top = 40;
+sunLight.shadow.camera.bottom = -40;
+sunLight.shadow.bias = -0.0005;
+sunLight.shadow.normalBias = 0.05; // Reduces shadow acne on voxel faces
+scene.add(sunLight);
+scene.add(sunLight.target);
+
+// Moon Light
+const moonLight = new THREE.DirectionalLight(0xaaaaee, 0.2);
+scene.add(moonLight);
+scene.add(moonLight.target);
+
+// ============ Sun & Moon Visuals ============
+const sunMesh = new THREE.Mesh(
+  new THREE.SphereGeometry(4, 16, 16),
+  new THREE.MeshBasicMaterial({ color: 0xffeeaa, fog: false })
+);
+scene.add(sunMesh);
+
+const moonMesh = new THREE.Mesh(
+  new THREE.SphereGeometry(3, 16, 16),
+  new THREE.MeshBasicMaterial({ color: 0xdddddd, fog: false })
+);
+scene.add(moonMesh);
+
+// Stars (Night Sky)
+const starsGeo = new THREE.BufferGeometry();
+const starCount = 2000;
+const starPositions = new Float32Array(starCount * 3);
+for (let i = 0; i < starCount; i++) {
+  const r = 200;
+  const theta = Math.random() * Math.PI * 2;
+  const phi = Math.acos(2 * Math.random() - 1);
+  starPositions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+  starPositions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+  starPositions[i * 3 + 2] = r * Math.cos(phi);
+}
+starsGeo.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+const starsMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.5, transparent: true, opacity: 0, fog: false });
+const stars = new THREE.Points(starsGeo, starsMat);
+scene.add(stars);
 
 // ============ Block definitions & Textures ============
 const AIR = 0, WOOD = 1, GRASS = 2, STONE = 3;
@@ -65,12 +140,10 @@ const blockGeo = new THREE.BoxGeometry(1, 1, 1);
 
 const loader = new THREE.TextureLoader();
 
-// Load textures from exact paths provided
 const stoneTex = loader.load('/assets/texters/blocks/stone.png');
 const grassTex = loader.load('/assets/texters/blocks/grass.png');
 const plankTex = loader.load('/assets/texters/blocks/plank.png');
 
-// Set crisp pixelated rendering for block textures
 [stoneTex, grassTex, plankTex].forEach(tex => {
   tex.magFilter = THREE.NearestFilter;
   tex.minFilter = THREE.NearestMipmapNearestFilter;
@@ -85,7 +158,7 @@ const materials = {
 
 // ============ World data (Flatworld) ============
 const W = 32, H = 24, D = 32;
-const Y_MIN = -8; // World goes from y = -8 to y = 15
+const Y_MIN = -8;
 const world = new Uint8Array(W * H * D);
 const blockMeshes = {};
 
@@ -93,7 +166,6 @@ const idx = (x, y, z) => x + (y - Y_MIN) * W + z * W * H;
 const inBounds = (x, y, z) => x >= 0 && x < W && y >= Y_MIN && y < Y_MIN + H && z >= 0 && z < D;
 const kkey = (x, y, z) => `${x},${y},${z}`;
 
-// y = 0 is grass, y < 0 is stone, y > 0 is air
 for (let x = 0; x < W; x++) {
   for (let z = 0; z < D; z++) {
     world[idx(x, 0, z)] = GRASS;
@@ -103,7 +175,6 @@ for (let x = 0; x < W; x++) {
   }
 }
 
-// ============ Block mesh management ============
 function hasExposedFace(x, y, z) {
   const n = [[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]];
   for (const [dx, dy, dz] of n) {
@@ -168,9 +239,32 @@ let onGround = false;
 camera.position.copy(playerPos);
 camera.position.y += EYE_HEIGHT;
 
-const keys = {};
-addEventListener('keydown', e => keys[e.code] = true);
-addEventListener('keyup', e => keys[e.code] = false);
+const keysDown = new Set();
+addEventListener('keydown', e => keysDown.add(e.code));
+addEventListener('keyup', e => keysDown.delete(e.code));
+
+// ============ DEV Mode Logic ============
+let devMode = false;
+let devToggleReady = true;
+const debugDiv = document.getElementById('debug');
+
+function checkDevMode() {
+  const isDevPressed = keysDown.has('KeyD') && keysDown.has('KeyE') && keysDown.has('KeyV');
+  if (isDevPressed && devToggleReady) {
+    devMode = !devMode;
+    devToggleReady = false;
+    
+    // Toggle wireframe on all materials
+    Object.values(materials).forEach(mat => {
+      mat.wireframe = devMode;
+    });
+    
+    debugDiv.style.display = devMode ? 'block' : 'none';
+  }
+  if (!isDevPressed) {
+    devToggleReady = true;
+  }
+}
 
 function collides(px, py, pz) {
   const w = PLAYER_WIDTH / 2;
@@ -241,7 +335,6 @@ function placeBlock() {
   if (world[idx(x, y, z)] !== AIR) return;
   if (blockOverlapsPlayer(x, y, z)) return;
 
-  // Y-level based placement logic
   let typeToPlace;
   if (y < 0) typeToPlace = STONE;
   else if (y === 0) typeToPlace = GRASS;
@@ -258,36 +351,105 @@ addEventListener('mousedown', e => {
 });
 addEventListener('contextmenu', e => e.preventDefault());
 
-// ============ Animation loop ============
+// ============ Animation Loop ============
 const clock = new THREE.Clock();
 const upVec = new THREE.Vector3(0, 1, 0);
 const forwardVec = new THREE.Vector3();
 const rightVec = new THREE.Vector3();
 const moveDir = new THREE.Vector3();
 
+// Day/Night Colors
+const daySky = new THREE.Color(0x87ceeb);
+const sunsetSky = new THREE.Color(0xff6655);
+const nightSky = new THREE.Color(0x000011);
+
+let dayTime = 0.25; // Start in the morning
+
 function animate() {
   requestAnimationFrame(animate);
   const dt = Math.min(clock.getDelta(), 0.05);
+  
+  // DEV Mode Check
+  checkDevMode();
 
+  // Day/Night Cycle (1 full cycle ~ 120 seconds)
+  dayTime = (dayTime + dt / 120) % 1.0;
+  const sunAngle = dayTime * Math.PI * 2;
+  
+  // Sun & Moon positioning (orbit around player)
+  const orbitRadius = 100;
+  const sunHeight = Math.sin(sunAngle);
+  const sunX = Math.cos(sunAngle) * orbitRadius;
+  const sunY = sunHeight * orbitRadius;
+  const sunZ = 30; // Offset so it doesn't pass straight overhead
+  
+  sunMesh.position.set(playerPos.x + sunX, playerPos.y + sunY, playerPos.z + sunZ);
+  sunLight.position.copy(sunMesh.position);
+  sunLight.target.position.copy(playerPos);
+  
+  moonMesh.position.set(playerPos.x - sunX, playerPos.y - sunY, playerPos.z - sunZ);
+  moonLight.position.copy(moonMesh.position);
+  moonLight.target.position.copy(playerPos);
+
+  // Dynamic Lighting & Sky colors
+  let skyColor = new THREE.Color();
+  let lightIntensity = 0;
+  let ambientIntensity = 0;
+  
+  if (sunHeight > 0.2) {
+    // Day
+    skyColor.copy(daySky);
+    lightIntensity = 1.2;
+    ambientIntensity = 0.4;
+    starsMat.opacity = 0;
+  } else if (sunHeight > -0.2) {
+    // Sunset / Sunrise
+    const t = (sunHeight + 0.2) / 0.4; // 0 to 1
+    skyColor.lerpColors(nightSky, sunsetSky, t * 0.8);
+    skyColor.lerp(daySky, Math.max(0, t - 0.5) * 2);
+    lightIntensity = t * 1.0;
+    ambientIntensity = 0.1 + t * 0.3;
+    starsMat.opacity = 1 - t;
+  } else {
+    // Night
+    skyColor.copy(nightSky);
+    lightIntensity = 0;
+    ambientIntensity = 0.1;
+    starsMat.opacity = 1;
+  }
+  
+  scene.background.copy(skyColor);
+  scene.fog.color.copy(skyColor);
+  sunLight.intensity = lightIntensity;
+  ambientLight.intensity = ambientIntensity;
+  
+  // Turn sun/moon meshes off when they are below the horizon
+  sunMesh.visible = sunHeight > -0.1;
+  moonMesh.visible = sunHeight < 0.1;
+
+  // Stars rotation
+  stars.rotation.y += dt * 0.01;
+
+  // Player Movement
   if (controls.isLocked) {
     camera.getWorldDirection(forwardVec);
     forwardVec.y = 0;
     forwardVec.normalize();
     rightVec.crossVectors(forwardVec, upVec).normalize();
 
-    const moveZ = (keys['KeyW'] ? 1 : 0) - (keys['KeyS'] ? 1 : 0);
-    const moveX = (keys['KeyD'] ? 1 : 0) - (keys['KeyA'] ? 1 : 0);
+    const moveZ = (keysDown.has('KeyW') ? 1 : 0) - (keysDown.has('KeyS') ? 1 : 0);
+    const moveX = (keysDown.has('KeyD') ? 1 : 0) - (keysDown.has('KeyA') ? 1 : 0);
     moveDir.set(0, 0, 0)
       .addScaledVector(forwardVec, moveZ)
       .addScaledVector(rightVec, moveX);
     if (moveDir.lengthSq() > 0) moveDir.normalize();
 
-    const speed = keys['ShiftLeft'] ? SPRINT_SPEED : MOVE_SPEED;
+    const speed = keysDown.has('ShiftLeft') ? SPRINT_SPEED : MOVE_SPEED;
     playerVel.x = moveDir.x * speed;
     playerVel.z = moveDir.z * speed;
 
     playerVel.y -= GRAVITY * dt;
-    if (keys['Space'] && onGround) {
+    if (keysDown.has('Space') && onGround) {
       playerVel.y = JUMP_SPEED;
       onGround = false;
     }
@@ -326,9 +488,25 @@ function animate() {
     updateTarget();
   }
 
+  // Highlight block pulse
   if (highlightMesh.visible) {
     const t = performance.now() * 0.003;
     highlightMesh.material.opacity = 0.4 + Math.sin(t) * 0.2;
+  }
+
+  // DEV Mode Output
+  if (devMode) {
+    const fps = (1 / dt).toFixed(0);
+    const timeStr = `${(dayTime * 24).toFixed(1).padStart(4, '0')}:00`;
+    const blockCount = Object.keys(blockMeshes).length;
+    debugDiv.innerHTML = `
+      <strong>VOXALWORLD DEBUG</strong><br>
+      FPS: ${fps}<br>
+      POS: X:${playerPos.x.toFixed(1)} Y:${playerPos.y.toFixed(1)} Z:${playerPos.z.toFixed(1)}<br>
+      TIME: ${timeStr} (Cycle: ${(dayTime * 100).toFixed(1)}%)<br>
+      MESHES: ${blockCount}<br>
+      TARGET: ${targetBlock ? `${targetBlock.x},${targetBlock.y},${targetBlock.z}` : 'None'}
+    `;
   }
 
   renderer.render(scene, camera);
