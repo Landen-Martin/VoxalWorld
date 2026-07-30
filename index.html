@@ -27,13 +27,16 @@
 
   h1 {
     font-family: 'Russo One', sans-serif;
-    font-size: 64px;
-    letter-spacing: 8px;
-    margin-bottom: 10px;
+    font-size: 64px; letter-spacing: 8px; margin-bottom: 10px;
     text-shadow: 0 4px 10px rgba(0,0,0,0.5);
     background: linear-gradient(90deg, #d49560, #7ab85a, #9a9a9a);
     -webkit-background-clip: text; background-clip: text;
     -webkit-text-fill-color: transparent;
+  }
+  h2 {
+    font-family: 'Russo One', sans-serif;
+    font-size: 48px; letter-spacing: 6px; margin-bottom: 30px;
+    color: #fff; text-shadow: 0 4px 10px rgba(0,0,0,0.5);
   }
   .subtitle {
     font-size: 14px; letter-spacing: 4px;
@@ -45,127 +48,117 @@
     border: 1px solid rgba(255,255,255,0.15);
     color: #fff;
     padding: 14px 50px;
-    font-size: 16px;
-    font-family: 'Russo One', sans-serif;
-    letter-spacing: 3px;
-    margin: 8px;
-    cursor: pointer;
-    border-radius: 4px;
-    transition: all 0.2s;
-    text-transform: uppercase;
+    font-size: 16px; font-family: 'Russo One', sans-serif;
+    letter-spacing: 3px; margin: 8px; cursor: pointer;
+    border-radius: 4px; transition: all 0.2s; text-transform: uppercase;
   }
-  .btn:hover {
-    background: rgba(255,255,255,0.18);
-    transform: scale(1.05);
-    border-color: rgba(255,255,255,0.4);
-  }
+  .btn:hover { background: rgba(255,255,255,0.18); transform: scale(1.05); border-color: rgba(255,255,255,0.4); }
   .btn.secondary { background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.08); }
 
-  /* Settings */
-  .setting-row {
-    display: flex; align-items: center; gap: 15px;
-    margin: 15px 0; width: 350px;
-  }
+  /* Settings & Forms */
+  .setting-row { display: flex; align-items: center; gap: 15px; margin: 15px 0; width: 350px; }
   .setting-row label { width: 140px; text-align: right; color: #ccc; font-size: 14px; }
   .setting-row input[type="range"] { flex: 1; accent-color: #7ab85a; }
   .setting-row span { width: 40px; text-align: left; font-weight: 600; }
 
+  .form-group { margin: 20px 0; width: 100%; max-width: 400px; }
+  .form-group label { display: block; text-align: left; margin-bottom: 8px; color: #ccc; font-size: 14px; letter-spacing: 1px; }
+  .form-group input {
+    width: 100%; padding: 12px; background: rgba(0,0,0,0.4);
+    border: 1px solid rgba(255,255,255,0.2); border-radius: 4px;
+    color: #fff; font-size: 16px; font-family: 'Inter', sans-serif;
+  }
+  .form-group input:focus { outline: none; border-color: #7ab85a; }
+
+  .mode-toggle { display: flex; gap: 10px; }
+  .mode-btn {
+    flex: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+    color: #ccc; padding: 12px; border-radius: 4px; cursor: pointer;
+    font-family: 'Russo One', sans-serif; letter-spacing: 2px; transition: all 0.2s;
+  }
+  .mode-btn.active { background: rgba(122, 184, 90, 0.2); border-color: #7ab85a; color: #fff; }
+
+  /* World List */
+  .world-list-container {
+    max-height: 60vh; overflow-y: auto; width: 100%;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 20px;
+  }
+  .world-item {
+    display: flex; align-items: center;
+    background: rgba(255,255,255,0.05); padding: 12px; margin-bottom: 10px;
+    border-radius: 6px; width: 600px; max-width: 90%;
+    border: 1px solid rgba(255,255,255,0.1); transition: all 0.2s;
+  }
+  .world-item:hover { background: rgba(255,255,255,0.1); }
+  .world-thumb {
+    width: 96px; height: 64px; background: #000; border-radius: 4px;
+    overflow: hidden; margin-right: 20px; flex-shrink: 0;
+  }
+  .world-thumb img { width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated; }
+  .world-info { flex-grow: 1; text-align: left; }
+  .world-name { font-size: 20px; font-family: 'Russo One', sans-serif; margin-bottom: 4px; }
+  .world-mode { font-size: 12px; color: #8a9bb0; text-transform: uppercase; letter-spacing: 2px; }
+  .world-actions { display: flex; gap: 8px; }
+  
+  .btn-small {
+    background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+    color: #fff; padding: 8px 12px; border-radius: 4px; cursor: pointer;
+    font-family: 'Inter', sans-serif; font-weight: 600; font-size: 12px;
+    text-transform: uppercase; transition: all 0.2s;
+  }
+  .btn-small:hover { background: rgba(255,255,255,0.2); }
+  .btn-small.danger { background: rgba(255,80,80,0.2); border-color: rgba(255,80,80,0.4); }
+  .btn-small.danger:hover { background: rgba(255,80,80,0.4); }
+
+  .empty-list { color: #666; font-size: 18px; margin-top: 40px; }
+
   /* HUD */
-  #hud {
-    position: fixed; inset: 0;
-    pointer-events: none; z-index: 40;
-    display: none;
-  }
+  #hud { position: fixed; inset: 0; pointer-events: none; z-index: 40; display: none; }
   #crosshair {
-    position: absolute; top: 50%; left: 50%;
-    transform: translate(-50%, -50%);
-    width: 22px; height: 22px;
-    mix-blend-mode: difference; opacity: 0.8;
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: 22px; height: 22px; mix-blend-mode: difference; opacity: 0.8;
   }
-  #crosshair::before, #crosshair::after {
-    content: ''; position: absolute; background: #fff;
-  }
+  #crosshair::before, #crosshair::after { content: ''; position: absolute; background: #fff; }
   #crosshair::before { left: 50%; top: 0; width: 2px; height: 100%; transform: translateX(-50%); }
   #crosshair::after { top: 50%; left: 0; height: 2px; width: 100%; transform: translateY(-50%); }
 
-  #hearts {
-    position: absolute; bottom: 20px; left: 20px;
-    display: flex; gap: 4px;
-  }
-  .heart {
-    width: 24px; height: 24px;
-    transition: transform 0.1s;
-  }
+  #hearts { position: absolute; bottom: 20px; left: 20px; display: flex; gap: 4px; }
+  .heart { width: 24px; height: 24px; transition: transform 0.1s; }
   .heart svg { width: 100%; height: 100%; filter: drop-shadow(2px 2px 2px rgba(0,0,0,0.5)); }
   .heart.empty svg path { fill: #333; }
 
   #inventory {
-    position: absolute; bottom: 20px; left: 50%;
-    transform: translateX(-50%);
-    display: flex; gap: 10px;
-    background: rgba(0,0,0,0.5);
-    padding: 10px; border-radius: 8px;
-    border: 1px solid rgba(255,255,255,0.1);
-    backdrop-filter: blur(4px);
-    pointer-events: auto;
+    position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+    display: flex; gap: 10px; background: rgba(0,0,0,0.5);
+    padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);
+    backdrop-filter: blur(4px); pointer-events: auto;
   }
   .slot {
-    width: 50px; height: 50px;
-    background: rgba(255,255,255,0.05);
-    border: 2px solid rgba(255,255,255,0.1);
-    border-radius: 4px;
+    width: 50px; height: 50px; background: rgba(255,255,255,0.05);
+    border: 2px solid rgba(255,255,255,0.1); border-radius: 4px;
     display: flex; align-items: center; justify-content: center;
-    position: relative;
-    cursor: pointer;
-    transition: all 0.15s;
+    position: relative; cursor: pointer; transition: all 0.15s;
   }
-  .slot.active {
-    border-color: #fff;
-    background: rgba(255,255,255,0.2);
-    transform: translateY(-5px);
-    box-shadow: 0 5px 15px rgba(0,0,0,0.4);
-  }
+  .slot.active { border-color: #fff; background: rgba(255,255,255,0.2); transform: translateY(-5px); box-shadow: 0 5px 15px rgba(0,0,0,0.4); }
   .slot img { width: 32px; height: 32px; image-rendering: pixelated; pointer-events: none; }
-  .slot .count {
-    position: absolute; bottom: 2px; right: 4px;
-    font-size: 12px; font-weight: 800; color: #fff;
-    text-shadow: 1px 1px 2px #000;
-    pointer-events: none;
-  }
-  .slot .keybind {
-    position: absolute; top: 2px; left: 4px;
-    font-size: 10px; font-weight: 800; color: #aaa;
-    text-shadow: 1px 1px 2px #000;
-    pointer-events: none;
-  }
+  .slot .count { position: absolute; bottom: 2px; right: 4px; font-size: 12px; font-weight: 800; color: #fff; text-shadow: 1px 1px 2px #000; pointer-events: none; }
+  .slot .keybind { position: absolute; top: 2px; left: 4px; font-size: 10px; font-weight: 800; color: #aaa; text-shadow: 1px 1px 2px #000; pointer-events: none; }
 
   #mode-indicator {
     position: absolute; top: 20px; right: 20px;
-    font-family: 'Russo One', sans-serif;
-    color: #fff; font-size: 14px; letter-spacing: 2px;
-    background: rgba(0,0,0,0.5);
-    padding: 8px 16px; border-radius: 4px;
+    font-family: 'Russo One', sans-serif; color: #fff; font-size: 14px; letter-spacing: 2px;
+    background: rgba(0,0,0,0.5); padding: 8px 16px; border-radius: 4px;
     border: 1px solid rgba(255,255,255,0.1);
   }
 
-  #damage-flash {
-    position: fixed; inset: 0;
-    background: radial-gradient(circle, transparent 40%, rgba(255,0,0,0.5) 100%);
-    opacity: 0; pointer-events: none; z-index: 45;
-    transition: opacity 0.1s;
-  }
+  #damage-flash { position: fixed; inset: 0; background: radial-gradient(circle, transparent 40%, rgba(255,0,0,0.5) 100%); opacity: 0; pointer-events: none; z-index: 45; transition: opacity 0.1s; }
 
-  /* Debug */
-  #debug {
-    position: fixed; top: 10px; left: 10px;
-    color: #00ff00; font-family: 'Courier New', monospace;
-    font-size: 12px; z-index: 50;
-    text-shadow: 1px 1px 0 #000;
-    display: none;
-    background: rgba(0,0,0,0.6);
-    padding: 10px; border-radius: 4px;
-    pointer-events: none;
-  }
+  #debug { position: fixed; top: 10px; left: 10px; color: #00ff00; font-family: 'Courier New', monospace; font-size: 12px; z-index: 50; text-shadow: 1px 1px 0 #000; display: none; background: rgba(0,0,0,0.6); padding: 10px; border-radius: 4px; pointer-events: none; }
+
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
 </style>
 </head>
 <body>
@@ -173,13 +166,43 @@
 <div id="menu" class="overlay">
   <h1>VOXALWORLD</h1>
   <div class="subtitle">Build & Survive</div>
-  <button class="btn" id="play-survive-btn">SURVIVE MODE</button>
-  <button class="btn secondary" id="play-creative-btn">CREATIVE MODE</button>
-  <button class="btn secondary" id="settings-btn">SETTINGS</button>
+  <button class="btn" id="new-world-btn">New World</button>
+  <button class="btn secondary" id="load-world-btn">Load World</button>
+  <button class="btn secondary" id="settings-btn">Settings</button>
+  <button class="btn secondary" id="exit-btn">Exit</button>
 </div>
 
+<div id="new-world-menu" class="overlay hidden">
+  <h2>NEW WORLD</h2>
+  <div class="form-group">
+    <label>World Name</label>
+    <input type="text" id="world-name-input" maxlength="16" value="New World">
+  </div>
+  <div class="form-group">
+    <label>Game Mode</label>
+    <div class="mode-toggle">
+      <button class="mode-btn active" data-mode="survive">Survive</button>
+      <button class="mode-btn" data-mode="creative">Creative</button>
+    </div>
+  </div>
+  <div style="display:flex; gap:10px; margin-top: 30px;">
+    <button class="btn" id="create-world-confirm">CREATE</button>
+    <button class="btn secondary" id="cancel-new-world">BACK</button>
+  </div>
+</div>
+
+<div id="load-world-menu" class="overlay hidden">
+  <h2>LOAD WORLD</h2>
+  <div class="world-list-container" id="world-list"></div>
+  <div style="display:flex; gap:10px; margin-top: 20px;">
+    <button class="btn" id="import-world-btn">IMPORT WORLD</button>
+    <button class="btn secondary" id="cancel-load-world">BACK</button>
+  </div>
+</div>
+<input type="file" id="import-file-input" accept=".vw" style="display:none">
+
 <div id="settings" class="overlay hidden">
-  <h1>SETTINGS</h1>
+  <h2>SETTINGS</h2>
   <div class="setting-row">
     <label>FOV</label>
     <input type="range" id="fov-slider" min="60" max="100" value="75">
@@ -194,15 +217,16 @@
 </div>
 
 <div id="pause" class="overlay hidden">
-  <h1>PAUSED</h1>
+  <h2>PAUSED</h2>
   <button class="btn" id="resume-btn">RESUME</button>
-  <button class="btn secondary" id="menu-btn">MAIN MENU</button>
+  <button class="btn secondary" id="save-quit-btn">SAVE & QUIT</button>
 </div>
 
 <div id="death" class="overlay hidden" style="background: radial-gradient(circle, rgba(50,0,0,0.6) 0%, rgba(0,0,0,0.95) 100%);">
   <h1 style="background: linear-gradient(90deg, #ff4c4c, #8a2b2b); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">YOU DIED</h1>
   <div class="subtitle">The world consumed you</div>
   <button class="btn" id="respawn-btn">RESPAWN</button>
+  <button class="btn secondary" id="quit-btn">QUIT TO MENU</button>
 </div>
 
 <div id="hud">
@@ -210,21 +234,9 @@
   <div id="mode-indicator"></div>
   <div id="hearts"></div>
   <div id="inventory">
-    <div class="slot active" data-slot="1" id="inv-wood">
-      <span class="keybind">1</span>
-      <img src="/assets/texters/blocks/plank.png">
-      <span class="count">0</span>
-    </div>
-    <div class="slot" data-slot="2" id="inv-grass">
-      <span class="keybind">2</span>
-      <img src="/assets/texters/blocks/grass.png">
-      <span class="count">0</span>
-    </div>
-    <div class="slot" data-slot="3" id="inv-stone">
-      <span class="keybind">3</span>
-      <img src="/assets/texters/blocks/stone.png">
-      <span class="count">0</span>
-    </div>
+    <div class="slot active" data-slot="1" id="inv-wood"><span class="keybind">1</span><img src="/assets/texters/blocks/plank.png"><span class="count">0</span></div>
+    <div class="slot" data-slot="2" id="inv-grass"><span class="keybind">2</span><img src="/assets/texters/blocks/grass.png"><span class="count">0</span></div>
+    <div class="slot" data-slot="3" id="inv-stone"><span class="keybind">3</span><img src="/assets/texters/blocks/stone.png"><span class="count">0</span></div>
   </div>
 </div>
 
@@ -244,14 +256,14 @@
 import * as THREE from 'three';
 import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
 
-// ============ Scene ============
+// ============ Scene Setup ============
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87ceeb);
 scene.fog = new THREE.Fog(0x87ceeb, 30, 80);
 
 const camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.1, 500);
 
-const renderer = new THREE.WebGLRenderer({ antialias: true });
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); // preserveDrawingBuffer needed for screenshots
 renderer.setSize(innerWidth, innerHeight);
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.shadowMap.enabled = true;
@@ -260,7 +272,7 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.0;
 document.body.appendChild(renderer.domElement);
 
-// ============ Lighting ============
+// Lighting & Sky Elements
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
 scene.add(ambientLight);
 const hemisphereLight = new THREE.HemisphereLight(0x87ceeb, 0x4a3a28, 0.4);
@@ -268,9 +280,8 @@ scene.add(hemisphereLight);
 
 const sunLight = new THREE.DirectionalLight(0xfff0d0, 1.2);
 sunLight.castShadow = true;
-sunLight.shadow.mapSize.set(4096, 4096);
-sunLight.shadow.camera.near = 1;
-sunLight.shadow.camera.far = 150;
+sunLight.shadow.mapSize.set(2048, 2048);
+sunLight.shadow.camera.near = 1; sunLight.shadow.camera.far = 150;
 sunLight.shadow.camera.left = -40; sunLight.shadow.camera.right = 40;
 sunLight.shadow.camera.top = 40; sunLight.shadow.camera.bottom = -40;
 sunLight.shadow.bias = -0.0005; sunLight.shadow.normalBias = 0.05;
@@ -279,13 +290,10 @@ scene.add(sunLight); scene.add(sunLight.target);
 const moonLight = new THREE.DirectionalLight(0xaaaaee, 0.2);
 scene.add(moonLight); scene.add(moonLight.target);
 
-// ============ Sun & Moon Visuals ============
 const sunMesh = new THREE.Mesh(new THREE.SphereGeometry(4, 16, 16), new THREE.MeshBasicMaterial({ color: 0xffeeaa, fog: false }));
-scene.add(sunMesh);
 const moonMesh = new THREE.Mesh(new THREE.SphereGeometry(3, 16, 16), new THREE.MeshBasicMaterial({ color: 0xdddddd, fog: false }));
-scene.add(moonMesh);
+scene.add(sunMesh); scene.add(moonMesh);
 
-// Stars
 const starsGeo = new THREE.BufferGeometry();
 const starPositions = new Float32Array(2000 * 3);
 for (let i = 0; i < 2000; i++) {
@@ -298,7 +306,7 @@ starsGeo.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
 const stars = new THREE.Points(starsGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.5, transparent: true, opacity: 0, fog: false }));
 scene.add(stars);
 
-// ============ Block Textures ============
+// ============ Block Definitions ============
 const AIR = 0, WOOD = 1, GRASS = 2, STONE = 3;
 const blockGeo = new THREE.BoxGeometry(1, 1, 1);
 const loader = new THREE.TextureLoader();
@@ -328,11 +336,31 @@ const idx = (x, y, z) => x + (y - Y_MIN) * W + z * W * H;
 const inBounds = (x, y, z) => x >= 0 && x < W && y >= Y_MIN && y < Y_MIN + H && z >= 0 && z < D;
 const kkey = (x, y, z) => `${x},${y},${z}`;
 
-for (let x = 0; x < W; x++) {
-  for (let z = 0; z < D; z++) {
-    world[idx(x, 0, z)] = GRASS;
-    for (let y = -1; y >= Y_MIN; y--) world[idx(x, y, z)] = STONE;
+function resetWorld() {
+  Object.values(blockMeshes).forEach(m => scene.remove(m));
+  for (let key in blockMeshes) delete blockMeshes[key];
+  world.fill(0);
+  for (let x = 0; x < W; x++) {
+    for (let z = 0; z < D; z++) {
+      world[idx(x, 0, z)] = GRASS;
+      for (let y = -1; y >= Y_MIN; y--) world[idx(x, y, z)] = STONE;
+    }
   }
+  rebuildMeshes();
+}
+
+function loadWorldBlocks(bytes) {
+  Object.values(blockMeshes).forEach(m => scene.remove(m));
+  for (let key in blockMeshes) delete blockMeshes[key];
+  for(let i=0; i<world.length; i++) world[i] = bytes[i];
+  rebuildMeshes();
+}
+
+function rebuildMeshes() {
+  for (let x = 0; x < W; x++)
+    for (let y = Y_MIN; y < Y_MIN + H; y++)
+      for (let z = 0; z < D; z++)
+        if (world[idx(x, y, z)] !== AIR) createBlock(x, y, z);
 }
 
 function hasExposedFace(x, y, z) {
@@ -365,22 +393,60 @@ function removeBlockMesh(x, y, z) {
   if (blockMeshes[k]) { scene.remove(blockMeshes[k]); delete blockMeshes[k]; }
 }
 
-for (let x = 0; x < W; x++)
-  for (let y = Y_MIN; y < Y_MIN + H; y++)
-    for (let z = 0; z < D; z++)
-      if (world[idx(x, y, z)] !== AIR) createBlock(x, y, z);
+resetWorld(); // Initialize flat world for menu background
+
+// ============ Save System ============
+const SAVE_KEY = 'voxalworld_saves';
+
+function getWorlds() {
+  return JSON.parse(localStorage.getItem(SAVE_KEY) || '{}');
+}
+function saveWorlds(w) {
+  localStorage.setItem(SAVE_KEY, JSON.stringify(w));
+}
+
+function arrayToBase64(buffer) {
+  let binary = '';
+  const bytes = new Uint8Array(buffer);
+  const len = bytes.byteLength;
+  for (let i = 0; i < len; i++) binary += String.fromCharCode(bytes[i]);
+  return window.btoa(binary);
+}
+
+function base64ToArray(b64) {
+  const binary = window.atob(b64);
+  const len = binary.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+function captureThumbnail() {
+  const oldPos = camera.position.clone();
+  const oldRot = camera.rotation.clone();
+  
+  camera.position.set(playerPos.x + 10, playerPos.y + 10, playerPos.z + 10);
+  camera.lookAt(playerPos.x, playerPos.y - 2, playerPos.z);
+  
+  renderer.render(scene, camera);
+  const thumb = renderer.domElement.toDataURL('image/jpeg', 0.4);
+  
+  camera.position.copy(oldPos);
+  camera.rotation.copy(oldRot);
+  return thumb;
+}
 
 // ============ Controls & State ============
 const controls = new PointerLockControls(camera, document.body);
 scene.add(camera);
 
-let gameState = 'menu'; // menu, playing, paused, settings, dead
-let gameMode = 'survive'; // 'survive' or 'creative'
+let gameState = 'menu';
+let gameMode = 'survive';
+let currentWorldId = null;
 const keysDown = new Set();
 
 addEventListener('keydown', e => {
   keysDown.add(e.code);
-  // Inventory selection
   if (gameState === 'playing') {
     if (e.code === 'Digit1') selectSlot(1);
     if (e.code === 'Digit2') selectSlot(2);
@@ -397,32 +463,76 @@ const playerVel = new THREE.Vector3();
 let onGround = false;
 let playerHealth = 20;
 let inventory = { wood: 10, grass: 10, stone: 10 };
-let selectedSlot = 1; // 1=Wood, 2=Grass, 3=Stone
+let selectedSlot = 1;
+let dayTime = 0.25;
 
 camera.position.copy(playerPos);
 camera.position.y += EYE_HEIGHT;
 
 // ============ UI Logic ============
-const menuEl = document.getElementById('menu');
-const settingsEl = document.getElementById('settings');
-const pauseEl = document.getElementById('pause');
-const deathEl = document.getElementById('death');
 const hudEl = document.getElementById('hud');
 const modeIndicator = document.getElementById('mode-indicator');
 
-document.getElementById('play-survive-btn').onclick = () => startGame('survive');
-document.getElementById('play-creative-btn').onclick = () => startGame('creative');
-document.getElementById('settings-btn').onclick = () => { menuEl.classList.add('hidden'); settingsEl.classList.remove('hidden'); };
-document.getElementById('back-btn').onclick = () => { settingsEl.classList.add('hidden'); menuEl.classList.remove('hidden'); };
-document.getElementById('resume-btn').onclick = resumeGame;
-document.getElementById('menu-btn').onclick = returnToMenu;
-document.getElementById('respawn-btn').onclick = respawn;
+function showOverlay(id) {
+  ['menu', 'new-world-menu', 'load-world-menu', 'settings', 'pause', 'death'].forEach(o => {
+    document.getElementById(o).classList.add('hidden');
+  });
+  if (id) document.getElementById(id).classList.remove('hidden');
+}
 
-// Inventory slot clicking
-document.querySelectorAll('.slot').forEach(slot => {
-  slot.addEventListener('click', () => selectSlot(parseInt(slot.dataset.slot)));
+document.getElementById('new-world-btn').onclick = () => showOverlay('new-world-menu');
+document.getElementById('load-world-btn').onclick = () => { renderWorldList(); showOverlay('load-world-menu'); };
+document.getElementById('settings-btn').onclick = () => showOverlay('settings');
+document.getElementById('exit-btn').onclick = () => {
+  document.body.innerHTML = `
+    <div style="position:fixed;inset:0;background:#000;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'Russo One',sans-serif;">
+      <h1 style="font-size:48px;background:linear-gradient(90deg,#d49560,#7ab85a,#9a9a9a);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;">VOXALWORLD</h1>
+      <p style="font-family:'Inter',sans-serif;color:#aaa;margin-top:10px;letter-spacing:2px;">Thanks for playing. You can close this tab now.</p>
+      <button onclick="location.reload()" style="margin-top:30px;padding:15px 40px;background:rgba(255,255,255,0.1);color:#fff;border:1px solid rgba(255,255,255,0.2);cursor:pointer;font-family:'Russo One',sans-serif;letter-spacing:2px;">RELAUNCH</button>
+    </div>`;
+};
+
+// New World Menu
+document.querySelectorAll('.mode-btn').forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  };
 });
+document.getElementById('create-world-confirm').onclick = () => {
+  const name = document.getElementById('world-name-input').value || "Untitled World";
+  const mode = document.querySelector('.mode-btn.active').dataset.mode;
+  createWorld(name, mode);
+};
+document.getElementById('cancel-new-world').onclick = () => showOverlay('menu');
 
+// Load World Menu
+document.getElementById('cancel-load-world').onclick = () => showOverlay('menu');
+document.getElementById('import-world-btn').onclick = () => document.getElementById('import-file-input').click();
+document.getElementById('import-file-input').onchange = (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    try {
+      const w = JSON.parse(ev.target.result);
+      const worlds = getWorlds();
+      if (Object.keys(worlds).length >= 9) {
+        alert("World limit reached (9). Please delete an existing world.");
+        return;
+      }
+      w.id = 'world_' + Date.now();
+      worlds[w.id] = w;
+      saveWorlds(worlds);
+      renderWorldList();
+    } catch (err) { alert("Invalid world file."); }
+  };
+  reader.readAsText(file);
+  e.target.value = ''; // Reset input
+};
+
+// Settings
+document.getElementById('back-btn').onclick = () => showOverlay('menu');
 document.getElementById('fov-slider').oninput = (e) => {
   camera.fov = e.target.value; camera.updateProjectionMatrix();
   document.getElementById('fov-val').textContent = e.target.value;
@@ -431,6 +541,17 @@ document.getElementById('render-slider').oninput = (e) => {
   scene.fog.far = parseInt(e.target.value);
   document.getElementById('render-val').textContent = e.target.value;
 };
+
+// Pause & Death
+document.getElementById('resume-btn').onclick = resumeGame;
+document.getElementById('save-quit-btn').onclick = saveAndQuit;
+document.getElementById('respawn-btn').onclick = respawn;
+document.getElementById('quit-btn').onclick = saveAndQuit;
+
+// Inventory slots
+document.querySelectorAll('.slot').forEach(slot => {
+  slot.addEventListener('click', () => selectSlot(parseInt(slot.dataset.slot)));
+});
 
 controls.addEventListener('lock', () => {
   if (gameState === 'paused') gameState = 'playing';
@@ -441,10 +562,147 @@ controls.addEventListener('unlock', () => {
   if (gameState === 'playing') pauseGame();
 });
 
-function startGame(mode) {
+// ============ World Management ============
+function renderWorldList() {
+  const worlds = getWorlds();
+  const list = document.getElementById('world-list');
+  list.innerHTML = '';
+  
+  const sorted = Object.values(worlds).sort((a, b) => a.name.localeCompare(b.name));
+  
+  if (sorted.length === 0) {
+    list.innerHTML = '<div class="empty-list">No worlds found. Create a new one!</div>';
+    return;
+  }
+  
+  sorted.forEach(w => {
+    const item = document.createElement('div');
+    item.className = 'world-item';
+    item.innerHTML = `
+      <div class="world-thumb"><img src="${w.thumb || ''}" alt=""></div>
+      <div class="world-info">
+        <div class="world-name">${w.name}</div>
+        <div class="world-mode">${w.mode} Mode</div>
+      </div>
+      <div class="world-actions">
+        <button class="btn-small" data-action="play" data-id="${w.id}">Play</button>
+        <button class="btn-small" data-action="export" data-id="${w.id}">Export</button>
+        <button class="btn-small danger" data-action="delete" data-id="${w.id}">Delete</button>
+      </div>
+    `;
+    list.appendChild(item);
+  });
+  
+  list.querySelectorAll('button').forEach(btn => {
+    btn.onclick = (e) => {
+      const action = e.target.dataset.action;
+      const id = e.target.dataset.id;
+      if (action === 'play') loadWorld(id);
+      else if (action === 'export') exportWorld(id);
+      else if (action === 'delete') deleteWorld(id);
+    };
+  });
+}
+
+function createWorld(name, mode) {
+  const worlds = getWorlds();
+  if (Object.keys(worlds).length >= 9) {
+    alert("World limit reached (9). Please delete an existing world.");
+    return;
+  }
+  
+  currentWorldId = 'world_' + Date.now();
   gameMode = mode;
+  resetWorld();
+  resetPlayer();
+  
+  const thumb = captureThumbnail();
+  
+  worlds[currentWorldId] = {
+    id: currentWorldId,
+    name: name,
+    mode: mode,
+    thumb: thumb,
+    data: {
+      blocks: arrayToBase64(world.buffer),
+      playerPos: { x: playerPos.x, y: playerPos.y, z: playerPos.z },
+      playerHealth: playerHealth,
+      inventory: inventory,
+      dayTime: dayTime
+    }
+  };
+  saveWorlds(worlds);
+  
+  startGame();
+}
+
+function loadWorld(id) {
+  const worlds = getWorlds();
+  const w = worlds[id];
+  if (!w) return;
+  
+  currentWorldId = id;
+  gameMode = w.mode;
+  
+  const bytes = base64ToArray(w.data.blocks);
+  loadWorldBlocks(bytes);
+  
+  playerPos.set(w.data.playerPos.x, w.data.playerPos.y, w.data.playerPos.z);
+  playerVel.set(0,0,0);
+  playerHealth = w.data.playerHealth || 20;
+  inventory = w.data.inventory || { wood: 10, grass: 10, stone: 10 };
+  dayTime = w.data.dayTime || 0.25;
+  
+  startGame();
+}
+
+function saveAndQuit() {
+  if (currentWorldId) {
+    const worlds = getWorlds();
+    const w = worlds[currentWorldId];
+    if (w) {
+      const thumb = captureThumbnail();
+      w.thumb = thumb;
+      w.mode = gameMode;
+      w.data = {
+        blocks: arrayToBase64(world.buffer),
+        playerPos: { x: playerPos.x, y: playerPos.y, z: playerPos.z },
+        playerHealth: playerHealth,
+        inventory: inventory,
+        dayTime: dayTime
+      };
+      saveWorlds(worlds);
+    }
+  }
+  currentWorldId = null;
+  returnToMenu();
+}
+
+function exportWorld(id) {
+  const worlds = getWorlds();
+  const w = worlds[id];
+  if (!w) return;
+  
+  const blob = new Blob([JSON.stringify(w)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${w.name.replace(/[^a-z0-9]/gi, '_')}.vw`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function deleteWorld(id) {
+  const worlds = getWorlds();
+  delete worlds[id];
+  saveWorlds(worlds);
+  renderWorldList();
+}
+
+// ============ Game Flow ============
+function startGame() {
   gameState = 'playing';
-  menuEl.classList.add('hidden');
+  showOverlay(null);
   hudEl.style.display = 'block';
   
   if (gameMode === 'survive') {
@@ -456,41 +714,40 @@ function startGame(mode) {
     modeIndicator.textContent = 'CREATIVE MODE';
   }
   
-  resetPlayer();
+  updateHearts();
+  updateInventoryUI();
   controls.lock();
 }
 
 function pauseGame() {
   gameState = 'paused';
-  pauseEl.classList.remove('hidden');
+  showOverlay('pause');
 }
 
 function resumeGame() {
   gameState = 'playing';
-  pauseEl.classList.add('hidden');
+  showOverlay(null);
   controls.lock();
 }
 
 function returnToMenu() {
   gameState = 'menu';
-  pauseEl.classList.add('hidden');
-  deathEl.classList.add('hidden');
+  showOverlay('menu');
   hudEl.style.display = 'none';
-  menuEl.classList.remove('hidden');
-  // Reset world to original state for menu preview
   resetWorld();
+  resetPlayer();
 }
 
 function die() {
-  if (gameMode === 'creative') return; // Cannot die in creative
+  if (gameMode === 'creative') return;
   gameState = 'dead';
   controls.unlock();
-  deathEl.classList.remove('hidden');
+  showOverlay('death');
 }
 
 function respawn() {
-  deathEl.classList.add('hidden');
   gameState = 'playing';
+  showOverlay(null);
   resetPlayer();
   controls.lock();
 }
@@ -501,29 +758,14 @@ function resetPlayer() {
   playerHealth = 20;
   if (gameMode === 'survive') {
     inventory = { wood: 10, grass: 10, stone: 10 };
+  } else {
+    inventory = { wood: '∞', grass: '∞', stone: '∞' };
   }
   updateHearts();
   updateInventoryUI();
 }
 
-function resetWorld() {
-  // Simple reset: clear all meshes and regenerate base world
-  Object.values(blockMeshes).forEach(m => scene.remove(m));
-  for (let key in blockMeshes) delete blockMeshes[key];
-  world.fill(0);
-  for (let x = 0; x < W; x++) {
-    for (let z = 0; z < D; z++) {
-      world[idx(x, 0, z)] = GRASS;
-      for (let y = -1; y >= Y_MIN; y--) world[idx(x, y, z)] = STONE;
-    }
-  }
-  for (let x = 0; x < W; x++)
-    for (let y = Y_MIN; y < Y_MIN + H; y++)
-      for (let z = 0; z < D; z++)
-        if (world[idx(x, y, z)] !== AIR) createBlock(x, y, z);
-}
-
-// Hearts UI
+// ============ HUD Updates ============
 const heartsContainer = document.getElementById('hearts');
 for(let i=0; i<10; i++) {
   const heart = document.createElement('div');
@@ -535,9 +777,7 @@ for(let i=0; i<10; i++) {
 function updateHearts() {
   const hearts = heartsContainer.children;
   const fullHearts = Math.ceil(playerHealth / 2);
-  for(let i=0; i<10; i++) {
-    hearts[i].classList.toggle('empty', i >= fullHearts);
-  }
+  for(let i=0; i<10; i++) hearts[i].classList.toggle('empty', i >= fullHearts);
 }
 
 function selectSlot(slotNum) {
@@ -549,8 +789,7 @@ function updateInventoryUI() {
   ['wood', 'grass', 'stone'].forEach((type, i) => {
     const slotNum = i + 1;
     const el = document.getElementById(`inv-${type}`);
-    if (selectedSlot === slotNum) el.classList.add('active');
-    else el.classList.remove('active');
+    el.classList.toggle('active', selectedSlot === slotNum);
     el.querySelector('.count').textContent = inventory[type];
   });
 }
@@ -632,7 +871,6 @@ function breakBlock() {
   const { x, y, z, mesh } = targetBlock;
   const type = mesh.userData.type;
   
-  // Add to inventory if in survive mode
   if (gameMode === 'survive') {
     if (type === WOOD) inventory.wood++;
     else if (type === GRASS) inventory.grass++;
@@ -657,7 +895,6 @@ function placeBlock() {
   else if (selectedSlot === 2) { typeToPlace = GRASS; typeKey = 'grass'; }
   else { typeToPlace = STONE; typeKey = 'stone'; }
 
-  // Consume from inventory if in survive mode
   if (gameMode === 'survive') {
     if (inventory[typeKey] <= 0) return;
     inventory[typeKey]--;
@@ -680,7 +917,6 @@ const clock = new THREE.Clock();
 const upVec = new THREE.Vector3(0, 1, 0);
 const forwardVec = new THREE.Vector3(), rightVec = new THREE.Vector3(), moveDir = new THREE.Vector3();
 const daySky = new THREE.Color(0x87ceeb), sunsetSky = new THREE.Color(0xff6655), nightSky = new THREE.Color(0x000011);
-let dayTime = 0.25;
 
 function animate() {
   requestAnimationFrame(animate);
@@ -751,7 +987,6 @@ function animate() {
     onGround = false;
     if (collides(playerPos.x, playerPos.y, playerPos.z)) {
       playerPos.y = oldY;
-      // Fall damage calculation (Survive only)
       if (playerVel.y < -15 && gameMode === 'survive') {
         const dmg = Math.floor((-playerVel.y - 15) / 2) + 1;
         takeDamage(dmg);
@@ -760,14 +995,9 @@ function animate() {
       playerVel.y = 0;
     }
 
-    // Void death/teleport
     if (playerPos.y < -12) {
-      if (gameMode === 'survive') {
-        takeDamage(20);
-      } else {
-        playerPos.copy(SPAWN_POS);
-        playerVel.set(0,0,0);
-      }
+      if (gameMode === 'survive') takeDamage(20);
+      else { playerPos.copy(SPAWN_POS); playerVel.set(0,0,0); }
     }
 
     camera.position.copy(playerPos);
