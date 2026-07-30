@@ -70,13 +70,13 @@
   }
   .form-group input:focus { outline: none; border-color: #7ab85a; }
 
-  .mode-toggle { display: flex; gap: 10px; }
-  .mode-btn {
+  .toggle-group { display: flex; gap: 10px; }
+  .toggle-btn {
     flex: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
     color: #ccc; padding: 12px; border-radius: 4px; cursor: pointer;
     font-family: 'Russo One', sans-serif; letter-spacing: 2px; transition: all 0.2s;
   }
-  .mode-btn.active { background: rgba(122, 184, 90, 0.2); border-color: #7ab85a; color: #fff; }
+  .toggle-btn.active { background: rgba(122, 184, 90, 0.2); border-color: #7ab85a; color: #fff; }
 
   /* World List */
   .world-list-container {
@@ -98,7 +98,7 @@
   .world-thumb img { width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated; }
   .world-info { flex-grow: 1; text-align: left; }
   .world-name { font-size: 20px; font-family: 'Russo One', sans-serif; margin-bottom: 4px; }
-  .world-mode { font-size: 12px; color: #8a9bb0; text-transform: uppercase; letter-spacing: 2px; }
+  .world-meta { font-size: 12px; color: #8a9bb0; text-transform: uppercase; letter-spacing: 2px; }
   .world-actions { display: flex; gap: 8px; }
   
   .btn-small {
@@ -180,10 +180,21 @@
   </div>
   <div class="form-group">
     <label>Game Mode</label>
-    <div class="mode-toggle">
-      <button class="mode-btn active" data-mode="survive">Survive</button>
-      <button class="mode-btn" data-mode="creative">Creative</button>
+    <div class="toggle-group" id="mode-toggle">
+      <button class="toggle-btn active" data-mode="survive">Survive</button>
+      <button class="toggle-btn" data-mode="creative">Creative</button>
     </div>
+  </div>
+  <div class="form-group">
+    <label>World Type</label>
+    <div class="toggle-group" id="type-toggle">
+      <button class="toggle-btn active" data-type="flat">Flat</button>
+      <button class="toggle-btn" data-type="terrain">Terrain</button>
+    </div>
+  </div>
+  <div class="form-group">
+    <label>World Seed (Optional)</label>
+    <input type="text" id="world-seed-input" value="" placeholder="Leave empty for random">
   </div>
   <div style="display:flex; gap:10px; margin-top: 30px;">
     <button class="btn" id="create-world-confirm">CREATE</button>
@@ -210,8 +221,8 @@
   </div>
   <div class="setting-row">
     <label>Render Distance</label>
-    <input type="range" id="render-slider" min="40" max="150" value="80">
-    <span id="render-val">80</span>
+    <input type="range" id="render-slider" min="40" max="200" value="120">
+    <span id="render-val">120</span>
   </div>
   <button class="btn" id="back-btn" style="margin-top: 30px;">BACK</button>
 </div>
@@ -259,11 +270,11 @@ import { PointerLockControls } from 'three/addons/controls/PointerLockControls.j
 // ============ Scene Setup ============
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87ceeb);
-scene.fog = new THREE.Fog(0x87ceeb, 30, 80);
+scene.fog = new THREE.Fog(0x87ceeb, 40, 120);
 
-const camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.1, 500);
+const camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.1, 1000);
 
-const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); // preserveDrawingBuffer needed for screenshots
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
 renderer.setSize(innerWidth, innerHeight);
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.shadowMap.enabled = true;
@@ -280,10 +291,10 @@ scene.add(hemisphereLight);
 
 const sunLight = new THREE.DirectionalLight(0xfff0d0, 1.2);
 sunLight.castShadow = true;
-sunLight.shadow.mapSize.set(2048, 2048);
-sunLight.shadow.camera.near = 1; sunLight.shadow.camera.far = 150;
-sunLight.shadow.camera.left = -40; sunLight.shadow.camera.right = 40;
-sunLight.shadow.camera.top = 40; sunLight.shadow.camera.bottom = -40;
+sunLight.shadow.mapSize.set(4096, 4096);
+sunLight.shadow.camera.near = 1; sunLight.shadow.camera.far = 200;
+sunLight.shadow.camera.left = -60; sunLight.shadow.camera.right = 60;
+sunLight.shadow.camera.top = 60; sunLight.shadow.camera.bottom = -60;
 sunLight.shadow.bias = -0.0005; sunLight.shadow.normalBias = 0.05;
 scene.add(sunLight); scene.add(sunLight.target);
 
@@ -307,7 +318,7 @@ const stars = new THREE.Points(starsGeo, new THREE.PointsMaterial({ color: 0xfff
 scene.add(stars);
 
 // ============ Block Definitions ============
-const AIR = 0, WOOD = 1, GRASS = 2, STONE = 3;
+const AIR = 0, WOOD = 1, GRASS = 2, STONE = 3, WATER = 4;
 const blockGeo = new THREE.BoxGeometry(1, 1, 1);
 const loader = new THREE.TextureLoader();
 
@@ -324,11 +335,12 @@ const plankTex = loader.load('/assets/texters/blocks/plank.png');
 const materials = {
   [WOOD]: new THREE.MeshLambertMaterial({ map: plankTex }),
   [GRASS]: new THREE.MeshLambertMaterial({ map: grassTex }),
-  [STONE]: new THREE.MeshLambertMaterial({ map: stoneTex })
+  [STONE]: new THREE.MeshLambertMaterial({ map: stoneTex }),
+  [WATER]: new THREE.MeshLambertMaterial({ color: 0x3a75c4, transparent: true, opacity: 0.75, depthWrite: false })
 };
 
 // ============ World Data ============
-const W = 32, H = 24, D = 32, Y_MIN = -8;
+const W = 64, H = 40, D = 64, Y_MIN = -16;
 const world = new Uint8Array(W * H * D);
 const blockMeshes = {};
 
@@ -336,14 +348,89 @@ const idx = (x, y, z) => x + (y - Y_MIN) * W + z * W * H;
 const inBounds = (x, y, z) => x >= 0 && x < W && y >= Y_MIN && y < Y_MIN + H && z >= 0 && z < D;
 const kkey = (x, y, z) => `${x},${y},${z}`;
 
-function resetWorld() {
+// Seeded Perlin Noise & fBm Implementation
+function createPerlinNoise(seed) {
+  const p = new Uint8Array(512);
+  const permutation = [...Array(256).keys()];
+  let s = seed;
+  const rand = () => {
+    s = (s * 9301 + 49297) % 233280;
+    return s / 233280;
+  };
+  for (let i = permutation.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [permutation[i], permutation[j]] = [permutation[j], permutation[i]];
+  }
+  for (let i = 0; i < 256; i++) p[i] = p[i + 256] = permutation[i];
+
+  function fade(t) { return t * t * t * (t * (t * 6 - 15) + 10); }
+  function lerp(t, a, b) { return a + t * (b - a); }
+  function grad(hash, x, y, z) {
+    const h = hash & 15;
+    const u = h < 8 ? x : y;
+    const v = h < 4 ? y : h === 12 || h === 14 ? x : z;
+    return ((h & 1) === 0 ? u : -u) + ((h & 2) === 0 ? v : -v);
+  }
+  return function(x, y, z) {
+    const X = Math.floor(x) & 255, Y = Math.floor(y) & 255, Z = Math.floor(z) & 255;
+    x -= Math.floor(x); y -= Math.floor(y); z -= Math.floor(z);
+    const u = fade(x), v = fade(y), w = fade(z);
+    const A = p[X] + Y, AA = p[A] + Z, AB = p[A + 1] + Z;
+    const B = p[X + 1] + Y, BA = p[B] + Z, BB = p[B + 1] + Z;
+    return lerp(w, lerp(v, lerp(u, grad(p[AA], x, y, z), grad(p[BA], x - 1, y, z)),
+                         lerp(u, grad(p[AB], x, y - 1, z), grad(p[BB], x - 1, y - 1, z))),
+                 lerp(v, lerp(u, grad(p[AA + 1], x, y, z - 1), grad(p[BA + 1], x - 1, y, z - 1)),
+                         lerp(u, grad(p[AB + 1], x, y - 1, z - 1), grad(p[BB + 1], x - 1, y - 1, z - 1))));
+  };
+}
+
+function resetWorld(type = 'flat', seed = Math.floor(Math.random() * 1000000)) {
   Object.values(blockMeshes).forEach(m => scene.remove(m));
   for (let key in blockMeshes) delete blockMeshes[key];
   world.fill(0);
-  for (let x = 0; x < W; x++) {
-    for (let z = 0; z < D; z++) {
-      world[idx(x, 0, z)] = GRASS;
-      for (let y = -1; y >= Y_MIN; y--) world[idx(x, y, z)] = STONE;
+
+  if (type === 'flat') {
+    for (let x = 0; x < W; x++) {
+      for (let z = 0; z < D; z++) {
+        world[idx(x, 0, z)] = GRASS;
+        for (let y = -1; y >= Y_MIN; y--) world[idx(x, y, z)] = STONE;
+      }
+    }
+  } else if (type === 'terrain') {
+    const noise = createPerlinNoise(seed);
+    const fbm = (x, y) => {
+      let total = 0, amp = 1, freq = 1, max = 0;
+      for (let i = 0; i < 3; i++) { // Octaves: 3
+        total += noise(x * freq, y * freq, 0) * amp;
+        max += amp;
+        amp *= 0.5; // Gain: 0.5
+        freq *= 2.6; // Lacunarity: 2.6
+      }
+      return total / max;
+    };
+    
+    const SEA_LEVEL = -2;
+    const amplitude = 12;
+    const scale = 0.03;
+    
+    for (let x = 0; x < W; x++) {
+      for (let z = 0; z < D; z++) {
+        const n = fbm(x * scale, z * scale);
+        const height = Math.round(n * amplitude);
+        
+        for (let y = Y_MIN; y <= height; y++) {
+          if (y >= Y_MIN) world[idx(x, y, z)] = STONE;
+        }
+        
+        if (height >= SEA_LEVEL) {
+          world[idx(x, height, z)] = GRASS;
+        } else {
+          world[idx(x, height, z)] = STONE;
+          for (let y = height + 1; y <= SEA_LEVEL; y++) {
+            world[idx(x, y, z)] = WATER;
+          }
+        }
+      }
     }
   }
   rebuildMeshes();
@@ -365,9 +452,21 @@ function rebuildMeshes() {
 
 function hasExposedFace(x, y, z) {
   const n = [[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]];
+  const type = world[idx(x, y, z)];
+  
   for (const [dx, dy, dz] of n) {
     const nx = x + dx, ny = y + dy, nz = z + dz;
-    if (!inBounds(nx, ny, nz) || world[idx(nx, ny, nz)] === AIR) return true;
+    if (!inBounds(nx, ny, nz)) return true; // World edge
+    
+    const neighborType = world[idx(nx, ny, nz)];
+    if (neighborType === AIR) return true; // Air touching
+    
+    // Special rules for water
+    if (type === WATER) {
+      if (neighborType !== WATER) return true; // Water touching non-water (like stone or grass)
+    } else {
+      if (neighborType === WATER) return true; // Solid block touching water
+    }
   }
   return false;
 }
@@ -393,7 +492,7 @@ function removeBlockMesh(x, y, z) {
   if (blockMeshes[k]) { scene.remove(blockMeshes[k]); delete blockMeshes[k]; }
 }
 
-resetWorld(); // Initialize flat world for menu background
+resetWorld('flat'); // Initialize flat world for menu background
 
 // ============ Save System ============
 const SAVE_KEY = 'voxalworld_saves';
@@ -425,7 +524,7 @@ function captureThumbnail() {
   const oldPos = camera.position.clone();
   const oldRot = camera.rotation.clone();
   
-  camera.position.set(playerPos.x + 10, playerPos.y + 10, playerPos.z + 10);
+  camera.position.set(playerPos.x + 15, playerPos.y + 15, playerPos.z + 15);
   camera.lookAt(playerPos.x, playerPos.y - 2, playerPos.z);
   
   renderer.render(scene, camera);
@@ -442,6 +541,8 @@ scene.add(camera);
 
 let gameState = 'menu';
 let gameMode = 'survive';
+let worldType = 'flat';
+let worldSeed = 0;
 let currentWorldId = null;
 const keysDown = new Set();
 
@@ -457,7 +558,7 @@ addEventListener('keyup', e => keysDown.delete(e.code));
 
 // ============ Player Stats ============
 const EYE_HEIGHT = 1.6, PLAYER_WIDTH = 0.55, GRAVITY = 26, JUMP_SPEED = 9, MOVE_SPEED = 5, SPRINT_SPEED = 8;
-const SPAWN_POS = new THREE.Vector3(W / 2 + 0.5, 2.0, D / 2 + 0.5);
+const SPAWN_POS = new THREE.Vector3(W / 2 + 0.5, 20.0, D / 2 + 0.5);
 const playerPos = SPAWN_POS.clone();
 const playerVel = new THREE.Vector3();
 let onGround = false;
@@ -492,17 +593,28 @@ document.getElementById('exit-btn').onclick = () => {
     </div>`;
 };
 
-// New World Menu
-document.querySelectorAll('.mode-btn').forEach(btn => {
+// New World Menu Toggles
+document.querySelectorAll('#mode-toggle .toggle-btn').forEach(btn => {
   btn.onclick = () => {
-    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('#mode-toggle .toggle-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
+    gameMode = btn.dataset.mode;
   };
 });
+document.querySelectorAll('#type-toggle .toggle-btn').forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll('#type-toggle .toggle-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    worldType = btn.dataset.type;
+  };
+});
+
 document.getElementById('create-world-confirm').onclick = () => {
   const name = document.getElementById('world-name-input').value || "Untitled World";
-  const mode = document.querySelector('.mode-btn.active').dataset.mode;
-  createWorld(name, mode);
+  const seedInput = document.getElementById('world-seed-input').value;
+  let seed = parseInt(seedInput);
+  if (isNaN(seed)) seed = Math.floor(Math.random() * 1000000);
+  createWorld(name, gameMode, worldType, seed);
 };
 document.getElementById('cancel-new-world').onclick = () => showOverlay('menu');
 
@@ -528,7 +640,7 @@ document.getElementById('import-file-input').onchange = (e) => {
     } catch (err) { alert("Invalid world file."); }
   };
   reader.readAsText(file);
-  e.target.value = ''; // Reset input
+  e.target.value = '';
 };
 
 // Settings
@@ -582,7 +694,7 @@ function renderWorldList() {
       <div class="world-thumb"><img src="${w.thumb || ''}" alt=""></div>
       <div class="world-info">
         <div class="world-name">${w.name}</div>
-        <div class="world-mode">${w.mode} Mode</div>
+        <div class="world-meta">${w.mode} Mode • ${w.type || 'flat'} World</div>
       </div>
       <div class="world-actions">
         <button class="btn-small" data-action="play" data-id="${w.id}">Play</button>
@@ -604,7 +716,7 @@ function renderWorldList() {
   });
 }
 
-function createWorld(name, mode) {
+function createWorld(name, mode, type, seed) {
   const worlds = getWorlds();
   if (Object.keys(worlds).length >= 9) {
     alert("World limit reached (9). Please delete an existing world.");
@@ -613,7 +725,10 @@ function createWorld(name, mode) {
   
   currentWorldId = 'world_' + Date.now();
   gameMode = mode;
-  resetWorld();
+  worldType = type;
+  worldSeed = seed;
+  
+  resetWorld(type, seed);
   resetPlayer();
   
   const thumb = captureThumbnail();
@@ -622,6 +737,8 @@ function createWorld(name, mode) {
     id: currentWorldId,
     name: name,
     mode: mode,
+    type: type,
+    seed: seed,
     thumb: thumb,
     data: {
       blocks: arrayToBase64(world.buffer),
@@ -643,6 +760,8 @@ function loadWorld(id) {
   
   currentWorldId = id;
   gameMode = w.mode;
+  worldType = w.type || 'flat';
+  worldSeed = w.seed || 0;
   
   const bytes = base64ToArray(w.data.blocks);
   loadWorldBlocks(bytes);
@@ -664,6 +783,8 @@ function saveAndQuit() {
       const thumb = captureThumbnail();
       w.thumb = thumb;
       w.mode = gameMode;
+      w.type = worldType;
+      w.seed = worldSeed;
       w.data = {
         blocks: arrayToBase64(world.buffer),
         playerPos: { x: playerPos.x, y: playerPos.y, z: playerPos.z },
@@ -734,7 +855,7 @@ function returnToMenu() {
   gameState = 'menu';
   showOverlay('menu');
   hudEl.style.display = 'none';
-  resetWorld();
+  resetWorld('flat');
   resetPlayer();
 }
 
@@ -828,7 +949,7 @@ function collides(px, py, pz) {
   for (let x = minX; x <= maxX; x++)
     for (let y = minY; y <= maxY; y++)
       for (let z = minZ; z <= maxZ; z++)
-        if (inBounds(x, y, z) && world[idx(x, y, z)] !== AIR) return true;
+        if (inBounds(x, y, z) && world[idx(x, y, z)] !== AIR && world[idx(x, y, z)] !== WATER) return true;
   return false;
 }
 
@@ -918,6 +1039,16 @@ const upVec = new THREE.Vector3(0, 1, 0);
 const forwardVec = new THREE.Vector3(), rightVec = new THREE.Vector3(), moveDir = new THREE.Vector3();
 const daySky = new THREE.Color(0x87ceeb), sunsetSky = new THREE.Color(0xff6655), nightSky = new THREE.Color(0x000011);
 
+function isPlayerInWater() {
+  const x = Math.floor(playerPos.x);
+  const y = Math.floor(playerPos.y + 0.5); // check around chest level
+  const z = Math.floor(playerPos.z);
+  if (inBounds(x, y, z)) {
+    return world[idx(x, y, z)] === WATER;
+  }
+  return false;
+}
+
 function animate() {
   requestAnimationFrame(animate);
   const dt = Math.min(clock.getDelta(), 0.05);
@@ -928,11 +1059,11 @@ function animate() {
   dayTime = (dayTime + dt / 120) % 1.0;
   const sunAngle = dayTime * Math.PI * 2;
   const sunHeight = Math.sin(sunAngle);
-  const orbitRadius = 100;
+  const orbitRadius = 150;
   
-  sunMesh.position.set(playerPos.x + Math.cos(sunAngle) * orbitRadius, playerPos.y + sunHeight * orbitRadius, playerPos.z + 30);
+  sunMesh.position.set(playerPos.x + Math.cos(sunAngle) * orbitRadius, playerPos.y + sunHeight * orbitRadius, playerPos.z + 50);
   sunLight.position.copy(sunMesh.position); sunLight.target.position.copy(playerPos);
-  moonMesh.position.set(playerPos.x - Math.cos(sunAngle) * orbitRadius, playerPos.y - sunHeight * orbitRadius, playerPos.z - 30);
+  moonMesh.position.set(playerPos.x - Math.cos(sunAngle) * orbitRadius, playerPos.y - sunHeight * orbitRadius, playerPos.z - 50);
   moonLight.position.copy(moonMesh.position); moonLight.target.position.copy(playerPos);
 
   let skyColor = new THREE.Color(), lightIntensity = 0, ambientIntensity = 0;
@@ -953,13 +1084,15 @@ function animate() {
   // Menu State Orbit Camera
   if (gameState === 'menu') {
     const time = clock.getElapsedTime();
-    camera.position.x = Math.cos(time * 0.1) * 25 + W/2;
-    camera.position.z = Math.sin(time * 0.1) * 25 + D/2;
-    camera.position.y = 15 + Math.sin(time * 0.2) * 2;
+    camera.position.x = Math.cos(time * 0.05) * 45 + W/2;
+    camera.position.z = Math.sin(time * 0.05) * 45 + D/2;
+    camera.position.y = 25 + Math.sin(time * 0.2) * 2;
     camera.lookAt(W/2, 0, D/2);
   } 
   // Playing State Physics
   else if (gameState === 'playing') {
+    const inWater = isPlayerInWater();
+    
     camera.getWorldDirection(forwardVec); forwardVec.y = 0; forwardVec.normalize();
     rightVec.crossVectors(forwardVec, upVec).normalize();
 
@@ -971,8 +1104,23 @@ function animate() {
     const speed = keysDown.has('ShiftLeft') ? SPRINT_SPEED : MOVE_SPEED;
     playerVel.x = moveDir.x * speed; playerVel.z = moveDir.z * speed;
 
-    playerVel.y -= GRAVITY * dt;
-    if (keysDown.has('Space') && onGround) { playerVel.y = JUMP_SPEED; onGround = false; }
+    // Gravity / Swimming
+    if (inWater) {
+      playerVel.y -= GRAVITY * 0.3 * dt; // Slow gravity in water
+      if (keysDown.has('Space')) {
+        playerVel.y = 4.0; // Swim up
+      }
+      // Water drag
+      playerVel.y *= 0.9;
+      playerVel.x *= 0.9;
+      playerVel.z *= 0.9;
+    } else {
+      playerVel.y -= GRAVITY * dt;
+      if (keysDown.has('Space') && onGround) { 
+        playerVel.y = JUMP_SPEED; 
+        onGround = false; 
+      }
+    }
 
     const oldX = playerPos.x;
     playerPos.x += playerVel.x * dt;
@@ -987,7 +1135,7 @@ function animate() {
     onGround = false;
     if (collides(playerPos.x, playerPos.y, playerPos.z)) {
       playerPos.y = oldY;
-      if (playerVel.y < -15 && gameMode === 'survive') {
+      if (playerVel.y < -15 && gameMode === 'survive' && !inWater) {
         const dmg = Math.floor((-playerVel.y - 15) / 2) + 1;
         takeDamage(dmg);
       }
@@ -995,7 +1143,7 @@ function animate() {
       playerVel.y = 0;
     }
 
-    if (playerPos.y < -12) {
+    if (playerPos.y < -20) {
       if (gameMode === 'survive') takeDamage(20);
       else { playerPos.copy(SPAWN_POS); playerVel.set(0,0,0); }
     }
@@ -1017,6 +1165,8 @@ function animate() {
       <strong>VOXALWORLD DEBUG</strong><br>
       FPS: ${fps}<br>
       MODE: ${gameMode.toUpperCase()}<br>
+      TYPE: ${worldType.toUpperCase()}<br>
+      SEED: ${worldSeed || 'N/A'}<br>
       POS: X:${playerPos.x.toFixed(1)} Y:${playerPos.y.toFixed(1)} Z:${playerPos.z.toFixed(1)}<br>
       VEL: Y:${playerVel.y.toFixed(1)}<br>
       HP: ${playerHealth}<br>
