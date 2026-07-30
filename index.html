@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Textured Flatworld</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { overflow: hidden; background: #000; }
+  canvas { display: block; }
+  body { cursor: pointer; }
+  body.locked { cursor: none; }
+</style>
+</head>
+<body>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+
+// ============ Scene ============
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x87ceeb);
+scene.fog = new THREE.Fog(0x87ceeb, 25, 70);
+
+const camera = new THREE.PerspectiveCamera(72, innerWidth / innerHeight, 0.1, 200);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+document.body.appendChild(renderer.domElement);
+
+// ============ Lighting ============
+scene.add(new THREE.AmbientLight(0xb8c8d8, 0.6));
+scene.add(new THREE.HemisphereLight(0x87ceeb, 0x4a3a28, 0.5));
+
+const sun = new THREE.DirectionalLight(0xfff0d0, 1.2);
+sun.position.set(30, 50, 20);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -35;
+sun.shadow.camera.right = 35;
+sun.shadow.camera.top = 35;
+sun.shadow.camera.bottom = -35;
+sun.shadow.camera.near = 1;
+sun.shadow.camera.far = 120;
+sun.shadow.bias = -0.0008;
+scene.add(sun);
+
+// ============ Block definitions & Textures ============
+const AIR = 0, WOOD = 1, GRASS = 2, STONE = 3;
+const blockGeo = new THREE.BoxGeometry(1, 1, 1);
+
+const loader = new THREE.TextureLoader();
+
+// Load textures from exact paths provided
+const stoneTex = loader.load('/assets/texters/blocks/stone.png');
+const grassTex = loader.load('/assets/texters/blocks/grass.png');
+const plankTex = loader.load('/assets/texters/blocks/plank.png');
+
+// Set crisp pixelated rendering for block textures
+[stoneTex, grassTex, plankTex].forEach(tex => {
+  tex.magFilter = THREE.NearestFilter;
+  tex.minFilter = THREE.NearestMipmapNearestFilter;
+  tex.colorSpace = THREE.SRGBColorSpace;
+});
+
+const materials = {
+  [WOOD]: new THREE.MeshLambertMaterial({ map: plankTex }),
+  [GRASS]: new THREE.MeshLambertMaterial({ map: grassTex }),
+  [STONE]: new THREE.MeshLambertMaterial({ map: stoneTex })
+};
+
+// ============ World data (Flatworld) ============
+const W = 32, H = 24, D = 32;
+const Y_MIN = -8; // World goes from y = -8 to y = 15
+const world = new Uint8Array(W * H * D);
+const blockMeshes = {};
+
+const idx = (x, y, z) => x + (y - Y_MIN) * W + z * W * H;
+const inBounds = (x, y, z) => x >= 0 && x < W && y >= Y_MIN && y < Y_MIN + H && z >= 0 && z < D;
+const kkey = (x, y, z) => `${x},${y},${z}`;
+
+// y = 0 is grass, y < 0 is stone, y > 0 is air
+for (let x = 0; x < W; x++) {
+  for (let z = 0; z < D; z++) {
+    world[idx(x, 0, z)] = GRASS;
+    for (let y = -1; y >= Y_MIN; y--) {
+      world[idx(x, y, z)] = STONE;
+    }
+  }
+}
+
+// ============ Block mesh management ============
+function hasExposedFace(x, y, z) {
+  const n = [[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]];
+  for (const [dx, dy, dz] of n) {
+    const nx = x + dx, ny = y + dy, nz = z + dz;
+    if (!inBounds(nx, ny, nz) || world[idx(nx, ny, nz)] === AIR) return true;
+  }
+  return false;
+}
+
+function createBlock(x, y, z) {
+  if (!inBounds(x, y, z)) return null;
+  const type = world[idx(x, y, z)];
+  if (type === AIR) return null;
+  if (blockMeshes[kkey(x, y, z)]) return blockMeshes[kkey(x, y, z)];
+  if (!hasExposedFace(x, y, z)) return null;
+
+  const mesh = new THREE.Mesh(blockGeo, materials[type]);
+  mesh.position.set(x + 0.5, y + 0.5, z + 0.5);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  mesh.userData = { x, y, z, type };
+  scene.add(mesh);
+  blockMeshes[kkey(x, y, z)] = mesh;
+  return mesh;
+}
+
+function removeBlockMesh(x, y, z) {
+  const k = kkey(x, y, z);
+  if (blockMeshes[k]) {
+    scene.remove(blockMeshes[k]);
+    delete blockMeshes[k];
+  }
+}
+
+for (let x = 0; x < W; x++)
+  for (let y = Y_MIN; y < Y_MIN + H; y++)
+    for (let z = 0; z < D; z++)
+      if (world[idx(x, y, z)] !== AIR) createBlock(x, y, z);
+
+// ============ Controls ============
+const controls = new PointerLockControls(camera, document.body);
+scene.add(camera);
+
+document.body.addEventListener('click', () => {
+  if (!controls.isLocked) controls.lock();
+});
+controls.addEventListener('lock', () => document.body.classList.add('locked'));
+controls.addEventListener('unlock', () => document.body.classList.remove('locked'));
+
+// ============ Player physics ============
+const EYE_HEIGHT = 1.6;
+const PLAYER_WIDTH = 0.55;
+const GRAVITY = 26;
+const JUMP_SPEED = 9;
+const MOVE_SPEED = 5;
+const SPRINT_SPEED = 8;
+
+const playerPos = new THREE.Vector3(W / 2 + 0.5, 2.0, D / 2 + 0.5);
+const playerVel = new THREE.Vector3();
+let onGround = false;
+
+camera.position.copy(playerPos);
+camera.position.y += EYE_HEIGHT;
+
+const keys = {};
+addEventListener('keydown', e => keys[e.code] = true);
+addEventListener('keyup', e => keys[e.code] = false);
+
+function collides(px, py, pz) {
+  const w = PLAYER_WIDTH / 2;
+  const minX = Math.floor(px - w), maxX = Math.floor(px + w);
+  const minY = Math.floor(py), maxY = Math.floor(py + EYE_HEIGHT - 0.01);
+  const minZ = Math.floor(pz - w), maxZ = Math.floor(pz + w);
+  for (let x = minX; x <= maxX; x++)
+    for (let y = minY; y <= maxY; y++)
+      for (let z = minZ; z <= maxZ; z++)
+        if (inBounds(x, y, z) && world[idx(x, y, z)] !== AIR) return true;
+  return false;
+}
+
+function blockOverlapsPlayer(bx, by, bz) {
+  const w = PLAYER_WIDTH / 2;
+  return (playerPos.x - w < bx + 1 && playerPos.x + w > bx &&
+          playerPos.y < by + 1 && playerPos.y + EYE_HEIGHT > by &&
+          playerPos.z - w < bz + 1 && playerPos.z + w > bz);
+}
+
+// ============ Block interaction ============
+const raycaster = new THREE.Raycaster();
+raycaster.far = 7;
+const screenCenter = new THREE.Vector2(0, 0);
+
+const highlightMesh = new THREE.LineSegments(
+  new THREE.EdgesGeometry(new THREE.BoxGeometry(1.005, 1.005, 1.005)),
+  new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6 })
+);
+highlightMesh.visible = false;
+scene.add(highlightMesh);
+
+let targetBlock = null, placePos = null;
+
+function updateTarget() {
+  raycaster.setFromCamera(screenCenter, camera);
+  const hits = raycaster.intersectObjects(Object.values(blockMeshes));
+  if (hits.length > 0) {
+    const hit = hits[0];
+    const mesh = hit.object;
+    const { x, y, z } = mesh.userData;
+    targetBlock = { x, y, z, mesh };
+    const n = hit.face.normal;
+    placePos = { x: x + Math.round(n.x), y: y + Math.round(n.y), z: z + Math.round(n.z) };
+    highlightMesh.position.set(x + 0.5, y + 0.5, z + 0.5);
+    highlightMesh.visible = true;
+  } else {
+    targetBlock = null;
+    placePos = null;
+    highlightMesh.visible = false;
+  }
+}
+
+function breakBlock() {
+  if (!targetBlock) return;
+  const { x, y, z } = targetBlock;
+  world[idx(x, y, z)] = AIR;
+  removeBlockMesh(x, y, z);
+  for (const [dx, dy, dz] of [[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]]) {
+    createBlock(x + dx, y + dy, z + dz);
+  }
+}
+
+function placeBlock() {
+  if (!placePos) return;
+  const { x, y, z } = placePos;
+  if (!inBounds(x, y, z)) return;
+  if (world[idx(x, y, z)] !== AIR) return;
+  if (blockOverlapsPlayer(x, y, z)) return;
+
+  // Y-level based placement logic
+  let typeToPlace;
+  if (y < 0) typeToPlace = STONE;
+  else if (y === 0) typeToPlace = GRASS;
+  else typeToPlace = WOOD;
+
+  world[idx(x, y, z)] = typeToPlace;
+  createBlock(x, y, z);
+}
+
+addEventListener('mousedown', e => {
+  if (!controls.isLocked) return;
+  if (e.button === 0) breakBlock();
+  else if (e.button === 2) placeBlock();
+});
+addEventListener('contextmenu', e => e.preventDefault());
+
+// ============ Animation loop ============
+const clock = new THREE.Clock();
+const upVec = new THREE.Vector3(0, 1, 0);
+const forwardVec = new THREE.Vector3();
+const rightVec = new THREE.Vector3();
+const moveDir = new THREE.Vector3();
+
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.05);
+
+  if (controls.isLocked) {
+    camera.getWorldDirection(forwardVec);
+    forwardVec.y = 0;
+    forwardVec.normalize();
+    rightVec.crossVectors(forwardVec, upVec).normalize();
+
+    const moveZ = (keys['KeyW'] ? 1 : 0) - (keys['KeyS'] ? 1 : 0);
+    const moveX = (keys['KeyD'] ? 1 : 0) - (keys['KeyA'] ? 1 : 0);
+    moveDir.set(0, 0, 0)
+      .addScaledVector(forwardVec, moveZ)
+      .addScaledVector(rightVec, moveX);
+    if (moveDir.lengthSq() > 0) moveDir.normalize();
+
+    const speed = keys['ShiftLeft'] ? SPRINT_SPEED : MOVE_SPEED;
+    playerVel.x = moveDir.x * speed;
+    playerVel.z = moveDir.z * speed;
+
+    playerVel.y -= GRAVITY * dt;
+    if (keys['Space'] && onGround) {
+      playerVel.y = JUMP_SPEED;
+      onGround = false;
+    }
+
+    const oldX = playerPos.x;
+    playerPos.x += playerVel.x * dt;
+    if (collides(playerPos.x, playerPos.y, playerPos.z)) {
+      playerPos.x = oldX;
+      playerVel.x = 0;
+    }
+
+    const oldZ = playerPos.z;
+    playerPos.z += playerVel.z * dt;
+    if (collides(playerPos.x, playerPos.y, playerPos.z)) {
+      playerPos.z = oldZ;
+      playerVel.z = 0;
+    }
+
+    const oldY = playerPos.y;
+    playerPos.y += playerVel.y * dt;
+    onGround = false;
+    if (collides(playerPos.x, playerPos.y, playerPos.z)) {
+      playerPos.y = oldY;
+      if (playerVel.y < 0) onGround = true;
+      playerVel.y = 0;
+    }
+
+    if (playerPos.y < -12) {
+      playerPos.set(W / 2 + 0.5, 2.0, D / 2 + 0.5);
+      playerVel.set(0, 0, 0);
+    }
+
+    camera.position.copy(playerPos);
+    camera.position.y += EYE_HEIGHT;
+
+    updateTarget();
+  }
+
+  if (highlightMesh.visible) {
+    const t = performance.now() * 0.003;
+    highlightMesh.material.opacity = 0.4 + Math.sin(t) * 0.2;
+  }
+
+  renderer.render(scene, camera);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
