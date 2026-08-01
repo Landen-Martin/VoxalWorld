@@ -245,10 +245,10 @@
   <div id="mode-indicator"></div>
   <div id="hearts"></div>
   <div id="inventory">
-    <div class="slot active" data-slot="1" id="inv-wood"><span class="keybind">1</span><img src="/assets/texters/blocks/plank.png"><span class="count">0</span></div>
-    <div class="slot" data-slot="2" id="inv-grass"><span class="keybind">2</span><img src="/assets/texters/blocks/grass.png"><span class="count">0</span></div>
-    <div class="slot" data-slot="3" id="inv-stone"><span class="keybind">3</span><img src="/assets/texters/blocks/stone.png"><span class="count">0</span></div>
-    <div class="slot" data-slot="4" id="inv-leaves"><span class="keybind">4</span><img src="/assets/texters/blocks/leaves.png"><span class="count">0</span></div>
+    <div class="slot active" data-slot="1" id="inv-wood"><span class="keybind">1</span><img src="assets/texters/blocks/plank.png"><span class="count">0</span></div>
+    <div class="slot" data-slot="2" id="inv-grass"><span class="keybind">2</span><img src="assets/texters/blocks/grass.png"><span class="count">0</span></div>
+    <div class="slot" data-slot="3" id="inv-stone"><span class="keybind">3</span><img src="assets/texters/blocks/stone.png"><span class="count">0</span></div>
+    <div class="slot" data-slot="4" id="inv-leaves"><span class="keybind">4</span><img src="assets/texters/blocks/leaves.png"><span class="count">0</span></div>
   </div>
 </div>
 
@@ -327,11 +327,12 @@ const waterMaterial = new THREE.MeshLambertMaterial({ color: 0x3a75c4, transpare
 
 function loadAtlas() {
   return new Promise((resolve) => {
+    // Updated relative paths for GitHub Pages compatibility
     const urls = [
-      '/assets/texters/blocks/plank.png',
-      '/assets/texters/blocks/grass.png',
-      '/assets/texters/blocks/stone.png',
-      '/assets/texters/blocks/leaves.png'
+      'assets/texters/blocks/plank.png',
+      'assets/texters/blocks/grass.png',
+      'assets/texters/blocks/stone.png',
+      'assets/texters/blocks/leaves.png'
     ];
     Promise.all(urls.map(url => new Promise((res) => {
       const img = new Image();
