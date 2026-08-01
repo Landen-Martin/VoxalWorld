@@ -70,13 +70,15 @@
   }
   .form-group input:focus { outline: none; border-color: #7ab85a; }
 
-  .toggle-group { display: flex; gap: 10px; }
+  .toggle-group { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
   .toggle-btn {
-    flex: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+    flex: 1; min-width: 80px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
     color: #ccc; padding: 12px; border-radius: 4px; cursor: pointer;
     font-family: 'Russo One', sans-serif; letter-spacing: 2px; transition: all 0.2s;
   }
   .toggle-btn.active { background: rgba(122, 184, 90, 0.2); border-color: #7ab85a; color: #fff; }
+  .toggle-btn.hardcore-btn { border-color: rgba(255,80,80,0.4); color: #ff8080; }
+  .toggle-btn.hardcore-btn.active { background: rgba(255, 80, 80, 0.2); border-color: #ff4c4c; color: #fff; }
 
   /* World List */
   .world-list-container {
@@ -197,10 +199,21 @@
     <input type="text" id="world-name-input" maxlength="16" value="New World">
   </div>
   <div class="form-group">
-    <label>Game Mode</label>
+    <label id="mode-label">Game Mode</label>
     <div class="toggle-group" id="mode-toggle">
       <button class="toggle-btn active" data-mode="survive">Survive</button>
       <button class="toggle-btn" data-mode="creative">Creative</button>
+    </div>
+  </div>
+  <div class="form-group">
+    <label>Difficulty</label>
+    <div class="toggle-group" id="difficulty-toggle">
+      <button class="toggle-btn" data-diff="toy">Toy</button>
+      <button class="toggle-btn" data-diff="easy">Easy</button>
+      <button class="toggle-btn active" data-diff="normal">Normal</button>
+      <button class="toggle-btn" data-diff="hard">Hard</button>
+      <button class="toggle-btn" data-diff="impossible">Impossible</button>
+      <button class="toggle-btn hardcore-btn" data-diff="hardcore">Hardcore</button>
     </div>
   </div>
   <div class="form-group">
@@ -751,8 +764,9 @@ function updateChunks() {
   }
 }
 
-// ============ Animals & Drops ============
+// ============ Animals, Hostiles & Drops ============
 const animals = [];
+const hostiles = [];
 const droppedItems = [];
 
 class DroppedItem {
@@ -912,12 +926,146 @@ class Pig {
   }
 }
 
+class Zombie {
+  constructor(pos) {
+    this.group = new THREE.Group();
+    const skinMat = new THREE.MeshLambertMaterial({ color: 0x44aa44 });
+    const clothMat = new THREE.MeshLambertMaterial({ color: 0x335588 });
+    
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.8, 0.3), clothMat);
+    body.position.y = 0.9; body.castShadow = true;
+    this.group.add(body);
+    
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), skinMat);
+    head.position.y = 1.6; head.castShadow = true;
+    this.group.add(head);
+    
+    const armGeo = new THREE.BoxGeometry(0.25, 0.8, 0.25);
+    const leftArm = new THREE.Mesh(armGeo, skinMat);
+    leftArm.position.set(-0.45, 1.0, 0.3); // Arms forward
+    leftArm.rotation.x = -Math.PI / 2;
+    leftArm.castShadow = true;
+    this.group.add(leftArm);
+    
+    const rightArm = new THREE.Mesh(armGeo, skinMat);
+    rightArm.position.set(0.45, 1.0, 0.3);
+    rightArm.rotation.x = -Math.PI / 2;
+    rightArm.castShadow = true;
+    this.group.add(rightArm);
+    
+    const legGeo = new THREE.BoxGeometry(0.25, 0.8, 0.25);
+    const leftLeg = new THREE.Mesh(legGeo, clothMat);
+    leftLeg.position.set(-0.15, 0.4, 0);
+    leftLeg.castShadow = true;
+    this.group.add(leftLeg);
+    
+    const rightLeg = new THREE.Mesh(legGeo, clothMat);
+    rightLeg.position.set(0.15, 0.4, 0);
+    rightLeg.castShadow = true;
+    this.group.add(rightLeg);
+    
+    this.group.position.copy(pos);
+    scene.add(this.group);
+    
+    this.vel = new THREE.Vector3(0,0,0);
+    this.dir = 0;
+    this.onGround = false;
+    this.health = 20;
+    this.width = 0.6;
+    this.height = 1.8;
+    this.alive = true;
+    this.attackCooldown = 0;
+    
+    this.group.userData.zombie = this;
+  }
+  
+  collides(px, py, pz) {
+    const w = this.width / 2;
+    const minX = Math.floor(px - w), maxX = Math.floor(px + w);
+    const minY = Math.floor(py), maxY = Math.floor(py + this.height - 0.01);
+    const minZ = Math.floor(pz - w), maxZ = Math.floor(pz + w);
+    for (let x = minX; x <= maxX; x++)
+      for (let y = minY; y <= maxY; y++)
+        for (let z = minZ; z <= maxZ; z++) {
+          const block = getBlockGlobal(x, y, z);
+          if (block !== AIR && block !== WATER) return true;
+        }
+    return false;
+  }
+  
+  update(dt) {
+    const pos = this.group.position;
+    const distToPlayer = pos.distanceTo(playerPos);
+    
+    if (distToPlayer < 20) {
+      this.dir = Math.atan2(playerPos.z - pos.z, playerPos.x - pos.x);
+    }
+    
+    const speed = 1.8;
+    this.vel.x = Math.cos(this.dir) * speed;
+    this.vel.z = Math.sin(this.dir) * speed;
+    this.vel.y -= GRAVITY * dt;
+    
+    // X collision
+    let oldX = pos.x; pos.x += this.vel.x * dt;
+    if (this.collides(pos.x, pos.y, pos.z)) {
+      pos.x = oldX;
+      if (this.onGround) this.vel.y = 7;
+    }
+    
+    // Z collision
+    let oldZ = pos.z; pos.z += this.vel.z * dt;
+    if (this.collides(pos.x, pos.y, pos.z)) {
+      pos.z = oldZ;
+      if (this.onGround) this.vel.y = 7;
+    }
+    
+    // Y collision
+    this.onGround = false;
+    let oldY = pos.y; pos.y += this.vel.y * dt;
+    if (this.collides(pos.x, pos.y, pos.z)) {
+      pos.y = oldY;
+      if (this.vel.y < 0) this.onGround = true;
+      this.vel.y = 0;
+    }
+    
+    // Face direction
+    this.group.rotation.y = -this.dir + Math.PI / 2;
+    
+    // Attack Player
+    this.attackCooldown -= dt;
+    if (distToPlayer < 1.2 && this.attackCooldown <= 0) {
+      let dmg = 0;
+      if (worldDifficulty === 'easy') dmg = 1;
+      else if (worldDifficulty === 'normal') dmg = 2;
+      else if (worldDifficulty === 'hard' || worldDifficulty === 'hardcore') dmg = 3;
+      else if (worldDifficulty === 'impossible') dmg = 5;
+      
+      if (dmg > 0) takeDamage(dmg);
+      this.attackCooldown = 1.0;
+    }
+  }
+  
+  takeDamage(dmg) {
+    this.health -= dmg;
+    this.vel.y = 5;
+    this.dir += Math.PI; // Turn away briefly
+    if (this.health <= 0) this.alive = false;
+  }
+}
+
 let spawnTimer = 0;
-function updateAnimals(dt) {
+function updateMobs(dt) {
   spawnTimer += dt;
   if (spawnTimer > 2) { // Check every 2 seconds
     spawnTimer = 0;
-    if (animals.length < 8 && dayTime > 0.25 && dayTime < 0.75) { // Only spawn during the day
+    
+    // Passive Mob Spawning
+    let maxAnimals = 8;
+    if (worldDifficulty === 'toy') maxAnimals = 0;
+    else if (worldDifficulty === 'hard' || worldDifficulty === 'impossible' || worldDifficulty === 'hardcore') maxAnimals = 15;
+    
+    if (animals.length < maxAnimals && dayTime > 0.25 && dayTime < 0.75) { // Only spawn during the day
       const px = Math.floor(playerPos.x + (Math.random() - 0.5) * 40);
       const pz = Math.floor(playerPos.z + (Math.random() - 0.5) * 40);
       for (let y = Y_MAX - 1; y > Y_MIN; y--) {
@@ -928,12 +1076,34 @@ function updateAnimals(dt) {
             break;
           }
         } else if (block !== AIR) {
-          break; // Hit terrain, no grass
+          break; 
+        }
+      }
+    }
+    
+    // Hostile Mob Spawning
+    let maxHostiles = 0;
+    if (worldDifficulty === 'easy') maxHostiles = 3;
+    else if (worldDifficulty === 'normal') maxHostiles = 5;
+    else if (worldDifficulty === 'hard' || worldDifficulty === 'hardcore') maxHostiles = 8;
+    else if (worldDifficulty === 'impossible') maxHostiles = 15;
+    
+    if (hostiles.length < maxHostiles && (dayTime < 0.2 || dayTime > 0.8)) { // Only spawn at night
+      const px = Math.floor(playerPos.x + (Math.random() - 0.5) * 30);
+      const pz = Math.floor(playerPos.z + (Math.random() - 0.5) * 30);
+      for (let y = Y_MAX - 1; y > Y_MIN; y--) {
+        const block = getBlockGlobal(px, y, pz);
+        if (block !== AIR && block !== WATER) {
+          if (getBlockGlobal(px, y + 1, pz) === AIR && getBlockGlobal(px, y + 2, pz) === AIR) {
+            hostiles.push(new Zombie(new THREE.Vector3(px + 0.5, y + 1, pz + 0.5)));
+            break;
+          }
         }
       }
     }
   }
   
+  // Update Pigs
   for (let i = animals.length - 1; i >= 0; i--) {
     const a = animals[i];
     a.update(dt);
@@ -943,6 +1113,18 @@ function updateAnimals(dt) {
     }
   }
   
+  // Update Zombies
+  for (let i = hostiles.length - 1; i >= 0; i--) {
+    const h = hostiles[i];
+    h.update(dt);
+    // Despawn if too far, dead, or if it's daytime
+    if (h.group.position.distanceTo(playerPos) > 60 || !h.alive || (dayTime > 0.3 && dayTime < 0.7)) {
+      scene.remove(h.group);
+      hostiles.splice(i, 1);
+    }
+  }
+  
+  // Update Dropped Items
   for (let i = droppedItems.length - 1; i >= 0; i--) {
     const alive = droppedItems[i].update(dt);
     if (!alive) {
@@ -971,9 +1153,10 @@ function captureThumbnail() {
 const controls = new PointerLockControls(camera, document.body);
 scene.add(camera);
 
-let gameState = 'menu', gameMode = 'survive', worldType = 'flat', worldSeed = 0, currentWorldId = null;
+let gameState = 'menu', gameMode = 'survive', worldType = 'flat', worldSeed = 0, worldDifficulty = 'normal', currentWorldId = null;
 const keysDown = new Set();
 let isFlying = false, isCrouching = false, lastSpacePress = 0;
+let healthRegenTimer = 0;
 
 const commandOverlay = document.getElementById('command-overlay');
 const commandInput = document.getElementById('command-input');
@@ -1026,9 +1209,15 @@ function executeCommand(str) {
     } else { logCommand('Usage: tp <x> <y> <z>', true); }
   } else if (cmd === 'gm' || cmd === 'gamemode') {
     if (args[1] === 'creative' || args[1] === 'survive') {
+      if (worldDifficulty === 'hardcore' && args[1] === 'creative') {
+        logCommand('Cannot use creative in Hardcore!', true); return;
+      }
       gameMode = args[1];
       if (gameMode === 'creative') inventory = { wood: '∞', grass: '∞', stone: '∞', leaves: '∞', porkchop: '∞' };
-      else inventory = { wood: 10, grass: 10, stone: 10, leaves: 10, porkchop: 0 };
+      else { 
+        inventory = { wood: 10, grass: 10, stone: 10, leaves: 10, porkchop: inventory.porkchop || 0 }; 
+        if (worldDifficulty === 'hardcore') inventory = { wood: 0, grass: 0, stone: 0, leaves: 0, porkchop: 0 };
+      }
       modeIndicator.textContent = gameMode === 'creative' ? 'CREATIVE MODE' : 'SURVIVE MODE';
       document.getElementById('hearts').style.display = gameMode === 'survive' ? 'flex' : 'none';
       updateInventoryUI(); updateHearts();
@@ -1120,7 +1309,7 @@ addEventListener('keyup', e => keysDown.delete(e.code));
 
 // ============ Player Stats ============
 const EYE_HEIGHT = 1.6, CROUCH_HEIGHT = 1.3, PLAYER_WIDTH = 0.55, GRAVITY = 26, JUMP_SPEED = 9, MOVE_SPEED = 5, SPRINT_SPEED = 8, FLY_SPEED = 20, CROUCH_SPEED = 2.5;
-const SPAWN_POS = new THREE.Vector3(0.5, 50.0, 0.5); // High up to spawn safely
+const SPAWN_POS = new THREE.Vector3(0.5, 15.0, 0.5); // Lowered spawn height
 const playerPos = SPAWN_POS.clone(), playerVel = new THREE.Vector3();
 let onGround = false, playerHealth = 20;
 let inventory = { wood: 10, grass: 10, stone: 10, leaves: 10, porkchop: 0 };
@@ -1145,6 +1334,25 @@ document.querySelectorAll('#mode-toggle .toggle-btn').forEach(btn => btn.onclick
   document.querySelectorAll('#mode-toggle .toggle-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active'); gameMode = btn.dataset.mode;
 });
+
+document.querySelectorAll('#difficulty-toggle .toggle-btn').forEach(btn => btn.onclick = () => {
+  document.querySelectorAll('#difficulty-toggle .toggle-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active'); worldDifficulty = btn.dataset.diff;
+  
+  // Force survive mode if Hardcore
+  if (worldDifficulty === 'hardcore') {
+    document.querySelectorAll('#mode-toggle .toggle-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.mode === 'survive');
+      b.style.display = 'none';
+    });
+    document.getElementById('mode-label').textContent = "Game Mode (Locked: Survive)";
+    gameMode = 'survive';
+  } else {
+    document.querySelectorAll('#mode-toggle .toggle-btn').forEach(b => b.style.display = 'block');
+    document.getElementById('mode-label').textContent = "Game Mode";
+  }
+});
+
 document.querySelectorAll('#type-toggle .toggle-btn').forEach(btn => btn.onclick = () => {
   document.querySelectorAll('#type-toggle .toggle-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active'); worldType = btn.dataset.type;
@@ -1154,7 +1362,7 @@ document.getElementById('create-world-confirm').onclick = () => {
   const name = document.getElementById('world-name-input').value || "Untitled World";
   const seedInput = document.getElementById('world-seed-input').value;
   let seed = parseInt(seedInput); if (isNaN(seed)) seed = Math.floor(Math.random() * 1000000);
-  createWorld(name, gameMode, worldType, seed);
+  createWorld(name, gameMode, worldType, seed, worldDifficulty);
 };
 document.getElementById('cancel-new-world').onclick = () => showOverlay('menu');
 document.getElementById('cancel-load-world').onclick = () => showOverlay('menu');
@@ -1192,7 +1400,7 @@ function renderWorldList() {
   if (sorted.length === 0) { list.innerHTML = '<div class="empty-list">No worlds found. Create a new one!</div>'; return; }
   sorted.forEach(w => {
     const item = document.createElement('div'); item.className = 'world-item';
-    item.innerHTML = `<div class="world-thumb"><img src="${w.thumb || ''}" alt=""></div><div class="world-info"><div class="world-name">${w.name}</div><div class="world-meta">${w.mode} Mode • ${w.type || 'flat'} World</div></div><div class="world-actions"><button class="btn-small" data-action="play" data-id="${w.id}">Play</button><button class="btn-small" data-action="export" data-id="${w.id}">Export</button><button class="btn-small danger" data-action="delete" data-id="${w.id}">Delete</button></div>`;
+    item.innerHTML = `<div class="world-thumb"><img src="${w.thumb || ''}" alt=""></div><div class="world-info"><div class="world-name">${w.name}</div><div class="world-meta">${w.mode} Mode • ${w.difficulty || 'normal'} • ${w.type || 'flat'} World</div></div><div class="world-actions"><button class="btn-small" data-action="play" data-id="${w.id}">Play</button><button class="btn-small" data-action="export" data-id="${w.id}">Export</button><button class="btn-small danger" data-action="delete" data-id="${w.id}">Delete</button></div>`;
     list.appendChild(item);
   });
   list.querySelectorAll('button').forEach(btn => btn.onclick = (e) => {
@@ -1209,17 +1417,19 @@ function clearAllChunks() {
   for (const key in chunks) delete chunks[key];
   modifiedBlocks = {};
   
-  // Clear animals & drops
+  // Clear animals, hostiles & drops
   for (let i = animals.length - 1; i >= 0; i--) scene.remove(animals[i].group);
   animals.length = 0;
+  for (let i = hostiles.length - 1; i >= 0; i--) scene.remove(hostiles[i].group);
+  hostiles.length = 0;
   for (let i = droppedItems.length - 1; i >= 0; i--) scene.remove(droppedItems[i].mesh);
   droppedItems.length = 0;
 }
 
-function createWorld(name, mode, type, seed) {
+function createWorld(name, mode, type, seed, diff) {
   const worlds = getWorlds();
   if (Object.keys(worlds).length >= 9) { alert("World limit reached (9)."); return; }
-  currentWorldId = 'world_' + Date.now(); gameMode = mode; worldType = type; worldSeed = seed;
+  currentWorldId = 'world_' + Date.now(); gameMode = mode; worldType = type; worldSeed = seed; worldDifficulty = diff;
   clearAllChunks();
   initNoise(seed);
   
@@ -1241,7 +1451,7 @@ function createWorld(name, mode, type, seed) {
   // Wait a moment for chunks to generate before taking thumbnail
   setTimeout(() => {
     const thumb = captureThumbnail();
-    worlds[currentWorldId] = { id: currentWorldId, name, mode, type, seed, thumb, data: { playerPos: { x: playerPos.x, y: playerPos.y, z: playerPos.z }, playerHealth, inventory, dayTime, modifiedBlocks } };
+    worlds[currentWorldId] = { id: currentWorldId, name, mode, type, seed, difficulty: worldDifficulty, thumb, data: { playerPos: { x: playerPos.x, y: playerPos.y, z: playerPos.z }, playerHealth, inventory, dayTime, modifiedBlocks } };
     saveWorlds(worlds);
   }, 500);
   
@@ -1250,7 +1460,7 @@ function createWorld(name, mode, type, seed) {
 
 function loadWorld(id) {
   const worlds = getWorlds(), w = worlds[id]; if (!w) return;
-  currentWorldId = id; gameMode = w.mode; worldType = w.type || 'flat'; worldSeed = w.seed || 0;
+  currentWorldId = id; gameMode = w.mode; worldType = w.type || 'flat'; worldSeed = w.seed || 0; worldDifficulty = w.difficulty || 'normal';
   clearAllChunks();
   initNoise(worldSeed);
   modifiedBlocks = w.data.modifiedBlocks || {};
@@ -1267,7 +1477,7 @@ function loadWorld(id) {
 function saveAndQuit() {
   if (currentWorldId) {
     const worlds = getWorlds(), w = worlds[currentWorldId]; if (w) {
-      const thumb = captureThumbnail(); w.thumb = thumb; w.mode = gameMode; w.type = worldType; w.seed = worldSeed;
+      const thumb = captureThumbnail(); w.thumb = thumb; w.mode = gameMode; w.type = worldType; w.seed = worldSeed; w.difficulty = worldDifficulty;
       w.data = { playerPos: { x: playerPos.x, y: playerPos.y, z: playerPos.z }, playerHealth, inventory, dayTime, modifiedBlocks };
       saveWorlds(worlds);
     }
@@ -1287,19 +1497,51 @@ function deleteWorld(id) { const worlds = getWorlds(); delete worlds[id]; saveWo
 // ============ Game Flow ============
 function startGame() {
   gameState = 'playing'; showOverlay(null); hudEl.style.display = 'block';
-  if (gameMode === 'survive') { document.getElementById('hearts').style.display = 'flex'; modeIndicator.textContent = 'SURVIVE MODE'; }
+  if (gameMode === 'survive') { document.getElementById('hearts').style.display = 'flex'; modeIndicator.textContent = `SURVIVE MODE (${worldDifficulty.toUpperCase()})`; }
   else { document.getElementById('hearts').style.display = 'none'; inventory = { wood: '∞', grass: '∞', stone: '∞', leaves: '∞', porkchop: '∞' }; modeIndicator.textContent = 'CREATIVE MODE'; }
+  
+  // Reset Death UI
+  document.getElementById('respawn-btn').style.display = 'inline-block';
+  document.getElementById('quit-btn').textContent = 'QUIT TO MENU';
+  
   updateHearts(); updateInventoryUI(); controls.lock();
 }
 function pauseGame() { gameState = 'paused'; showOverlay('pause'); }
 function resumeGame() { gameState = 'playing'; showOverlay(null); controls.lock(); }
 function returnToMenu() { gameState = 'menu'; showOverlay('menu'); hudEl.style.display = 'none'; clearAllChunks(); resetPlayer(); }
-function die() { if (gameMode === 'creative') return; gameState = 'dead'; controls.unlock(); showOverlay('death'); }
+function die() { 
+  if (gameMode === 'creative') return; 
+  gameState = 'dead'; controls.unlock(); showOverlay('death'); 
+  
+  if (worldDifficulty === 'hardcore') {
+    document.getElementById('respawn-btn').style.display = 'none';
+    const quitBtn = document.getElementById('quit-btn');
+    quitBtn.textContent = 'DELETE WORLD & QUIT';
+    quitBtn.onclick = () => {
+      if (currentWorldId) {
+        deleteWorld(currentWorldId);
+      }
+      currentWorldId = null; 
+      returnToMenu();
+      // Reset button for future deaths
+      quitBtn.textContent = 'QUIT TO MENU';
+      quitBtn.onclick = saveAndQuit;
+      document.getElementById('respawn-btn').style.display = 'inline-block';
+    };
+  }
+}
 function respawn() { gameState = 'playing'; showOverlay(null); resetPlayer(); controls.lock(); }
 function resetPlayer() {
   playerPos.copy(SPAWN_POS); playerVel.set(0, 0, 0); playerHealth = 20; isFlying = false; isCrouching = false;
-  if (gameMode === 'survive') inventory = { wood: 10, grass: 10, stone: 10, leaves: 10, porkchop: 0 };
-  else inventory = { wood: '∞', grass: '∞', stone: '∞', leaves: '∞', porkchop: '∞' };
+  if (gameMode === 'survive') {
+    if (worldDifficulty === 'hardcore') {
+      inventory = { wood: 0, grass: 0, stone: 0, leaves: 0, porkchop: 0 };
+    } else {
+      inventory = { wood: 10, grass: 10, stone: 10, leaves: 10, porkchop: 0 };
+    }
+  } else {
+    inventory = { wood: '∞', grass: '∞', stone: '∞', leaves: '∞', porkchop: '∞' };
+  }
   updateHearts(); updateInventoryUI();
 }
 
@@ -1425,23 +1667,25 @@ function placeBlock() {
 addEventListener('mousedown', e => { 
   if (gameState !== 'playing') return; 
   if (e.button === 0) {
-    // Check for animal hit first
+    // Check for mob hit first
     raycaster.setFromCamera(screenCenter, camera);
-    const animalMeshes = [];
-    animals.forEach(a => { if (a.alive) animalMeshes.push(a.group); });
-    const animalHits = raycaster.intersectObjects(animalMeshes, true);
+    const mobMeshes = [];
+    animals.forEach(a => { if (a.alive) mobMeshes.push(a.group); });
+    hostiles.forEach(h => { if (h.alive) mobMeshes.push(h.group); });
+    const mobHits = raycaster.intersectObjects(mobMeshes, true);
     
-    let hitAnimal = false;
-    if (animalHits.length > 0) {
-      const animalDist = animalHits[0].distance;
+    let hitMob = false;
+    if (mobHits.length > 0) {
+      const mobDist = mobHits[0].distance;
       let blockDist = Infinity;
       if (targetBlock) {
         blockDist = raycaster.ray.origin.distanceTo(new THREE.Vector3(targetBlock.x + 0.5, targetBlock.y + 0.5, targetBlock.z + 0.5));
       }
       
-      if (animalDist < blockDist) {
-        let hitObj = animalHits[0].object;
-        while(hitObj.parent && !hitObj.userData.pig) hitObj = hitObj.parent;
+      if (mobDist < blockDist) {
+        let hitObj = mobHits[0].object;
+        while(hitObj.parent && !hitObj.userData.pig && !hitObj.userData.zombie) hitObj = hitObj.parent;
+        
         if (hitObj.userData.pig) {
           const pig = hitObj.userData.pig;
           pig.takeDamage(5);
@@ -1450,11 +1694,19 @@ addEventListener('mousedown', e => {
             scene.remove(pig.group);
             animals.splice(animals.indexOf(pig), 1);
           }
-          hitAnimal = true;
+          hitMob = true;
+        } else if (hitObj.userData.zombie) {
+          const zombie = hitObj.userData.zombie;
+          zombie.takeDamage(5);
+          if (!zombie.alive) {
+            scene.remove(zombie.group);
+            hostiles.splice(hostiles.indexOf(zombie), 1);
+          }
+          hitMob = true;
         }
       }
     }
-    if (!hitAnimal) breakBlock();
+    if (!hitMob) breakBlock();
   } 
   else if (e.button === 2) placeBlock(); 
 });
@@ -1572,7 +1824,16 @@ function animate() {
       if (collides(playerPos.x, playerPos.y, playerPos.z, targetEyeHeight)) {
         playerPos.y = oldY;
         if (playerVel.y < -15 && gameMode === 'survive' && !inWater && !isFlying) {
-          const dmg = Math.floor((-playerVel.y - 15) / 2) + 1; takeDamage(dmg);
+          const fallSpeed = -playerVel.y;
+          let dmg = 0;
+          if (worldDifficulty === 'toy') dmg = 0;
+          else if (worldDifficulty === 'easy') dmg = Math.floor((fallSpeed - 15) / 3) + 1;
+          else if (worldDifficulty === 'normal') dmg = Math.floor((fallSpeed - 15) / 2) + 1;
+          else if (worldDifficulty === 'hard') dmg = Math.floor((fallSpeed - 10) / 1.5) + 1;
+          else if (worldDifficulty === 'impossible') dmg = Math.floor(fallSpeed / 2) + 1;
+          else if (worldDifficulty === 'hardcore') dmg = Math.floor((fallSpeed - 15) / 2) + 1;
+          
+          if (dmg > 0) takeDamage(dmg);
         }
         if (playerVel.y < 0) onGround = true; playerVel.y = 0;
       }
@@ -1581,8 +1842,25 @@ function animate() {
     if (playerPos.y < -20) { if (gameMode === 'survive') takeDamage(20); else { playerPos.copy(SPAWN_POS); playerVel.set(0,0,0); } }
     camera.position.copy(playerPos); camera.position.y += targetEyeHeight;
     
+    // Passive Health Regen
+    if (gameMode === 'survive' && playerHealth < 20 && playerHealth > 0) {
+      healthRegenTimer += dt;
+      let regenInterval = 0;
+      if (worldDifficulty === 'toy') regenInterval = 2;
+      else if (worldDifficulty === 'easy') regenInterval = 5;
+      else if (worldDifficulty === 'normal') regenInterval = 10;
+      
+      if (regenInterval > 0 && healthRegenTimer > regenInterval) {
+        playerHealth = Math.min(20, playerHealth + 1);
+        updateHearts();
+        healthRegenTimer = 0;
+      }
+    } else {
+      healthRegenTimer = 0;
+    }
+    
     updateChunks();
-    updateAnimals(dt);
+    updateMobs(dt);
     updateTarget();
   }
 
@@ -1592,7 +1870,7 @@ function animate() {
     const fps = (1 / dt).toFixed(0);
     const timeStr = `${(dayTime * 24).toFixed(1).padStart(4, '0')}:00`;
     let chunkCount = 0; for (const k in chunks) if (chunks[k].solidMesh) chunkCount++;
-    debugDiv.innerHTML = `VOXALWORLD DEBUG<br>FPS: ${fps}<br>MODE: ${gameMode.toUpperCase()}${isFlying ? ' (FLYING)' : ''}${isCrouching ? ' (CROUCH)' : ''}<br>POS: X:${playerPos.x.toFixed(1)} Y:${playerPos.y.toFixed(1)} Z:${playerPos.z.toFixed(1)}<br>TIME: ${timeStr}<br>CHUNKS: ${chunkCount}<br>MOD BLOCKS: ${Object.keys(modifiedBlocks).length}<br>ANIMALS: ${animals.length}<br>DROPS: ${droppedItems.length}`;
+    debugDiv.innerHTML = `VOXALWORLD DEBUG<br>FPS: ${fps}<br>DIFF: ${worldDifficulty.toUpperCase()}<br>MODE: ${gameMode.toUpperCase()}${isFlying ? ' (FLYING)' : ''}${isCrouching ? ' (CROUCH)' : ''}<br>POS: X:${playerPos.x.toFixed(1)} Y:${playerPos.y.toFixed(1)} Z:${playerPos.z.toFixed(1)}<br>TIME: ${timeStr}<br>CHUNKS: ${chunkCount}<br>MOD BLOCKS: ${Object.keys(modifiedBlocks).length}<br>PASSIVE: ${animals.length}<br>HOSTILES: ${hostiles.length}<br>DROPS: ${droppedItems.length}`;
   }
 
   renderer.render(scene, camera);
