@@ -176,12 +176,21 @@
     margin-top: 10px; max-height: 150px; overflow-y: auto;
   }
 
+  /* Version Tag */
+  #version-tag {
+    position: fixed; top: 10px; left: 15px; 
+    color: rgba(255,255,255,0.5); font-family: 'Inter', sans-serif; 
+    font-size: 12px; font-weight: 600; z-index: 99; pointer-events: none;
+  }
+
   ::-webkit-scrollbar { width: 8px; }
   ::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
   ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
 </style>
 </head>
 <body>
+
+<div id="version-tag">Alpha v1.1.5</div>
 
 <div id="menu" class="overlay">
   <h1>VOXALWORLD</h1>
@@ -360,7 +369,6 @@ const AIR = 0, WOOD = 1, GRASS = 2, STONE = 3, WATER = 4, LEAVES = 5;
 
 let atlasTexture = null;
 let solidMaterial = null;
-const waterMaterial = new THREE.MeshLambertMaterial({ color: 0x3a75c4, transparent: true, opacity: 0.75, depthWrite: false });
 
 function loadAtlas() {
   return new Promise((resolve) => {
@@ -397,6 +405,59 @@ function loadAtlas() {
 }
 
 await loadAtlas(); 
+
+// ============ Water Texture & Reflections ============
+function createWaterTexture() {
+  const c = document.createElement('canvas');
+  c.width = 64; c.height = 64;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#3a75c4';
+  ctx.fillRect(0, 0, 64, 64);
+  
+  // Ripples
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+  for(let i=0; i<20; i++) {
+    ctx.beginPath();
+    ctx.arc(Math.random() * 64, Math.random() * 64, Math.random() * 3 + 1, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // Waves
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+  ctx.lineWidth = 2;
+  for(let i=0; i<5; i++) {
+    ctx.beginPath();
+    const y = Math.random() * 64;
+    ctx.moveTo(0, y);
+    for(let x=0; x<=64; x+=4) {
+      ctx.lineTo(x, y + Math.sin(x * 0.2 + i) * 2);
+    }
+    ctx.stroke();
+  }
+  
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  return tex;
+}
+
+const waterTexture = createWaterTexture();
+const waterMaterial = new THREE.MeshPhongMaterial({ 
+  color: 0x3a75c4, 
+  map: waterTexture, 
+  transparent: true, 
+  opacity: 0.85, 
+  depthWrite: false,
+  shininess: 80,
+  specular: 0x88aaff
+});
+
+// Setup CubeCamera for reflections
+const cubeRenderTarget = new THREE.WebGLCubeRenderTarget(64, { format: THREE.RGBAFormat, generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter });
+const cubeCamera = new THREE.CubeCamera(1, 1000, cubeRenderTarget);
+scene.add(cubeCamera);
+
+waterMaterial.envMap = cubeRenderTarget.texture;
+waterMaterial.reflectivity = 0.4;
 
 // ============ Infinite Chunk System ============
 const CHUNK_SIZE = 16;
@@ -667,7 +728,11 @@ function buildChunkGeometry(cx, cz) {
               uv.push((tileX + 1) * 0.5, (tileY + 0) * 0.5);
               uv.push((tileX + 1) * 0.5, (tileY + 1) * 0.5);
             } else {
-              uv.push(0, 0, 0, 1, 1, 0, 1, 1); 
+              // Map water UVs to world coordinates for seamless texture tiling
+              uv.push(wx + face.corners[0][0], wz + face.corners[0][2]);
+              uv.push(wx + face.corners[1][0], wz + face.corners[1][2]);
+              uv.push(wx + face.corners[2][0], wz + face.corners[2][2]);
+              uv.push(wx + face.corners[3][0], wz + face.corners[3][2]);
             }
             ind.push(curIdx, curIdx + 1, curIdx + 2, curIdx + 2, curIdx + 1, curIdx + 3);
             curIdx += 4;
@@ -976,6 +1041,7 @@ class Zombie {
     this.alive = true;
     this.attackCooldown = 0;
     
+    this.changeDirTime = Math.random() * 3; // Random wander timer
     this.group.userData.zombie = this;
   }
   
@@ -997,8 +1063,16 @@ class Zombie {
     const pos = this.group.position;
     const distToPlayer = pos.distanceTo(playerPos);
     
-    if (distToPlayer < 20) {
+    // Target player ONLY if in survive mode
+    if (gameMode !== 'creative' && distToPlayer < 20) {
       this.dir = Math.atan2(playerPos.z - pos.z, playerPos.x - pos.x);
+    } else {
+      // Wander aimlessly if in creative mode
+      this.changeDirTime -= dt;
+      if (this.changeDirTime <= 0) {
+        this.dir = Math.random() * Math.PI * 2;
+        this.changeDirTime = 2 + Math.random() * 4;
+      }
     }
     
     const speed = 1.8;
@@ -1032,9 +1106,9 @@ class Zombie {
     // Face direction
     this.group.rotation.y = -this.dir + Math.PI / 2;
     
-    // Attack Player
+    // Attack Player ONLY if in survive mode
     this.attackCooldown -= dt;
-    if (distToPlayer < 1.2 && this.attackCooldown <= 0) {
+    if (gameMode !== 'creative' && distToPlayer < 1.2 && this.attackCooldown <= 0) {
       let dmg = 0;
       if (worldDifficulty === 'easy') dmg = 1;
       else if (worldDifficulty === 'normal') dmg = 2;
@@ -1132,6 +1206,41 @@ function updateMobs(dt) {
       droppedItems.splice(i, 1);
     }
   }
+}
+
+// ============ Water Flow System ============
+const waterQueue = [];
+
+function updateWaterFlow() {
+  // Process a few blocks per frame to prevent lag
+  let processed = 0;
+  const maxProcess = 3; 
+  
+  while (waterQueue.length > 0 && processed < maxProcess) {
+    processed++;
+    const [x, y, z] = waterQueue.shift();
+    const block = getBlockGlobal(x, y, z);
+    
+    if (block === WATER) {
+      // Flow down
+      if (getBlockGlobal(x, y - 1, z) === AIR) {
+        setBlockGlobal(x, y - 1, z, WATER);
+        waterQueue.push([x, y - 1, z]);
+        continue;
+      }
+      // Flow horizontally
+      const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+      for (const [dx, dz] of dirs) {
+        if (getBlockGlobal(x + dx, y, z + dz) === AIR) {
+          setBlockGlobal(x + dx, y, z + dz, WATER);
+          waterQueue.push([x + dx, y, z + dz]);
+        }
+      }
+    }
+  }
+  
+  // Prevent infinite memory leaks if an ocean is breached
+  if (waterQueue.length > 500) waterQueue.length = 500;
 }
 
 // ============ Save System ============
@@ -1319,6 +1428,7 @@ camera.position.copy(playerPos); camera.position.y += EYE_HEIGHT;
 
 // ============ UI Logic ============
 const hudEl = document.getElementById('hud'), modeIndicator = document.getElementById('mode-indicator');
+const versionTag = document.getElementById('version-tag');
 
 function showOverlay(id) {
   ['menu', 'new-world-menu', 'load-world-menu', 'settings', 'pause', 'death'].forEach(o => document.getElementById(o).classList.add('hidden'));
@@ -1424,6 +1534,8 @@ function clearAllChunks() {
   hostiles.length = 0;
   for (let i = droppedItems.length - 1; i >= 0; i--) scene.remove(droppedItems[i].mesh);
   droppedItems.length = 0;
+  
+  waterQueue.length = 0; // Clear water queue
 }
 
 function createWorld(name, mode, type, seed, diff) {
@@ -1578,6 +1690,7 @@ function checkDevMode() {
     devMode = !devMode; devToggleReady = false;
     if (solidMaterial) solidMaterial.wireframe = devMode;
     debugDiv.style.display = devMode ? 'block' : 'none';
+    versionTag.style.display = devMode ? 'none' : 'block'; // Hide version tag in dev mode
   }
   if (!isDevPressed) devToggleReady = true;
 }
@@ -1636,6 +1749,14 @@ function breakBlock() {
     updateInventoryUI();
   }
   setBlockGlobal(x, y, z, AIR);
+  
+  // Trigger water flow to fill the broken block
+  const neighbors = [[x+1,y,z], [x-1,y,z], [x,y,z+1], [x,y,z-1], [x,y+1,z]];
+  for (const [nx, ny, nz] of neighbors) {
+    if (getBlockGlobal(nx, ny, nz) === WATER) {
+      waterQueue.push([nx, ny, nz]);
+    }
+  }
 }
 
 function placeBlock() {
@@ -1718,6 +1839,9 @@ const upVec = new THREE.Vector3(0, 1, 0);
 const forwardVec = new THREE.Vector3(), rightVec = new THREE.Vector3(), moveDir = new THREE.Vector3();
 const daySky = new THREE.Color(0x87ceeb), sunsetSky = new THREE.Color(0xff6655), nightSky = new THREE.Color(0x000011);
 
+let cubeCamTimer = 0;
+let lastCubeCamPos = new THREE.Vector3();
+
 function isPlayerInWater() {
   const x = Math.floor(playerPos.x), y = Math.floor(playerPos.y + 0.5), z = Math.floor(playerPos.z);
   return getBlockGlobal(x, y, z) === WATER;
@@ -1727,6 +1851,10 @@ function animate() {
   requestAnimationFrame(animate);
   const dt = Math.min(clock.getDelta(), 0.05);
   checkDevMode();
+
+  // Animate water flow
+  waterTexture.offset.x += dt * 0.02;
+  waterTexture.offset.y += dt * 0.01;
 
   dayTime = (dayTime + dt / 120) % 1.0;
   const sunAngle = dayTime * Math.PI * 2, sunHeight = Math.sin(sunAngle), orbitRadius = 150;
@@ -1746,6 +1874,31 @@ function animate() {
   sunLight.intensity = lightIntensity; ambientLight.intensity = ambientIntensity;
   sunMesh.visible = sunHeight > -0.1; moonMesh.visible = sunHeight < 0.1;
   stars.rotation.y += dt * 0.01;
+
+  // Update water reflections (Optimized to only run when player moves)
+  cubeCamTimer += dt;
+  if (playerPos.distanceTo(lastCubeCamPos) > 4 || cubeCamTimer > 2.0) {
+    cubeCamTimer = 0;
+    lastCubeCamPos.copy(playerPos);
+    
+    // Hide water meshes temporarily so they don't reflect themselves
+    for (const key in chunks) {
+      if (chunks[key].waterMesh) chunks[key].waterMesh.visible = false;
+    }
+    animals.forEach(a => a.group.visible = false);
+    hostiles.forEach(h => h.group.visible = false);
+
+    cubeCamera.position.copy(playerPos);
+    cubeCamera.position.y += 3;
+    cubeCamera.update(renderer, scene);
+
+    // Unhide
+    for (const key in chunks) {
+      if (chunks[key].waterMesh) chunks[key].waterMesh.visible = true;
+    }
+    animals.forEach(a => a.group.visible = true);
+    hostiles.forEach(h => h.group.visible = true);
+  }
 
   if (gameState === 'menu') {
     const time = clock.getElapsedTime();
@@ -1803,7 +1956,9 @@ function animate() {
       playerVel.y = flyY * (isCtrl ? FLY_SPEED * 1.5 : FLY_SPEED);
     } else if (inWater) {
       playerVel.y -= GRAVITY * 0.3 * dt;
-      if (keysDown.has('Space')) playerVel.y = 4.0;
+      if (keysDown.has('Space')) {
+        playerVel.y = 7.0; // Launch out of water
+      }
       playerVel.y *= 0.9; playerVel.x *= 0.9; playerVel.z *= 0.9;
     } else {
       playerVel.y -= GRAVITY * dt;
@@ -1861,6 +2016,7 @@ function animate() {
     
     updateChunks();
     updateMobs(dt);
+    updateWaterFlow(); // Process water flow queue
     updateTarget();
   }
 
